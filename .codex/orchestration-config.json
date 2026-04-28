@@ -1,0 +1,162 @@
+{
+  "version": "1.0",
+  "project": "TPV El Jardín - Sistema de Punto de Venta para Restaurante",
+  "tech_stack": {
+    "frontend": "Next.js 15 + React 18 + Tailwind + Radix UI",
+    "backend": "Node.js/Express + TypeScript",
+    "database": "PostgreSQL + Prisma ORM",
+    "auth": "NextAuth + bcrypt",
+    "realtime": "Socket.io"
+  },
+  "description": "Orquestación especializada para desarrollo iterativo de funcionalidades del TPV",
+  "phases": [
+    {
+      "id": "spec",
+      "agent": "analista-funcional",
+      "name": "Especificación de Funcionalidad",
+      "description": "Definir requisitos funcionales de una nueva feature (ej: módulo de órdenes, caja, etc)",
+      "entrypoint": "Necesitas una nueva funcionalidad o mejora en el TPV",
+      "context": "Para restaurantes, camareros, cocina, caja",
+      "deliverable": "Especificación funcional clara con flujos",
+      "skills_before": [],
+      "skills_after": ["detectar-ambiguedad"],
+      "next_phase": "schema"
+    },
+    {
+      "id": "schema",
+      "agent": "database-designer",
+      "name": "Extensión de Schema Prisma",
+      "description": "Diseñar tablas, relaciones e índices para la nueva funcionalidad",
+      "entrypoint": "Tienes especificación funcional",
+      "context": "Se suma al schema existente de PostgreSQL",
+      "deliverable": "Modelos Prisma + migraciones SQL",
+      "skills_before": [],
+      "skills_after": ["check-modularidad"],
+      "next_phase": "api"
+    },
+    {
+      "id": "api",
+      "agent": "backend-developer",
+      "name": "Implementación de API Backend",
+      "description": "Crear endpoints, lógica de negocio y validaciones",
+      "entrypoint": "Tienes schema diseñado",
+      "context": "server/api/ routes + TypeScript + validaciones con Zod",
+      "deliverable": "APIs REST funcionales y documentadas",
+      "skills_before": [],
+      "skills_after": ["check-modularidad", "simplify"],
+      "next_phase": "frontend"
+    },
+    {
+      "id": "ui",
+      "agent": "diseñador-ux-ui",
+      "name": "Diseño de Pantalla y Flujo UI",
+      "description": "Diseñar pantallas, componentes y flujo de usuario",
+      "entrypoint": "Tienes especificación funcional",
+      "context": "Para tablet de sala, terminal de cocina, terminal de caja, admin",
+      "deliverable": "Especificación de UI/UX con pantallas y flujos",
+      "skills_before": [],
+      "skills_after": ["check-modularidad"],
+      "next_phase": "frontend"
+    },
+    {
+      "id": "frontend",
+      "agent": "frontend-developer-es",
+      "name": "Implementación Frontend (Next.js/React)",
+      "description": "Crear componentes React y consumir APIs",
+      "entrypoint": "Tienes diseño UI/UX y APIs listas",
+      "context": "src/components/ + src/pages/ + Radix UI + fetch/hooks",
+      "deliverable": "Componentes funcionales integrados con backend",
+      "skills_before": [],
+      "skills_after": ["check-modularidad", "simplify"],
+      "next_phase": "testing"
+    },
+    {
+      "id": "testing",
+      "agent": "qa-test-executor",
+      "name": "Testing y Validación",
+      "description": "Escribir tests y validar funcionalidad end-to-end",
+      "entrypoint": "Frontend y backend implementados",
+      "context": "Unit tests, integration tests, pruebas manuales",
+      "deliverable": "Suite de tests + validación de requisitos",
+      "skills_before": ["check-modularidad"],
+      "skills_after": [],
+      "next_phase": "devops"
+    },
+    {
+      "id": "devops",
+      "agent": "devops-infrastructure-engineer",
+      "name": "Deploy y CI/CD",
+      "description": "Desplegar feature a staging/producción",
+      "entrypoint": "Código testeado y listo",
+      "context": "Pipelines, migraciones DB, rollback",
+      "deliverable": "Feature deployed y operacional",
+      "skills_before": [],
+      "skills_after": [],
+      "next_phase": "security"
+    },
+    {
+      "id": "security",
+      "agent": "security-auditor",
+      "name": "Auditoría de Seguridad",
+      "description": "Revisar seguridad: autenticación, permisos, inyecciones, datos sensibles",
+      "entrypoint": "Feature en producción",
+      "context": "OWASP, roles de usuario (Admin/Camarero/Cocina/Caja), datos PCI",
+      "deliverable": "Reporte de seguridad y fixes si aplican",
+      "skills_before": [],
+      "skills_after": [],
+      "next_phase": "review"
+    },
+    {
+      "id": "review",
+      "agent": "tech-lead-revisor",
+      "name": "Revisión Técnica Final",
+      "description": "Validar coherencia arquitectónica y calidad general",
+      "entrypoint": "Feature completa y auditada",
+      "context": "Revisión de código, patrones, performance, documentación",
+      "deliverable": "Validación final y GO/NO-GO para release",
+      "skills_before": [],
+      "skills_after": [],
+      "next_phase": null
+    }
+  ],
+  "feature_workflows": {
+    "bug_fix": {
+      "name": "Flujo para Bug Fixes",
+      "phases": ["spec", "api", "frontend", "testing", "devops"],
+      "description": "Flujo rápido para corregir bugs en producción"
+    },
+    "new_feature": {
+      "name": "Flujo para Nueva Funcionalidad",
+      "phases": ["spec", "schema", "api", "ui", "frontend", "testing", "devops", "security", "review"],
+      "description": "Flujo completo para nueva feature del TPV"
+    },
+    "refactor": {
+      "name": "Flujo para Refactorización",
+      "phases": ["api", "frontend", "testing", "devops"],
+      "description": "Flujo para mejoras de código sin cambiar funcionalidad"
+    },
+    "optimization": {
+      "name": "Flujo para Optimización",
+      "phases": ["api", "frontend", "testing", "devops"],
+      "description": "Flujo para mejoras de performance"
+    }
+  },
+  "tpv_specific_modules": {
+    "ordenes": "Gestión de órdenes de clientes → api/routes/orders, components/OrderForm",
+    "caja": "Control de caja y pagos → api/routes/caja, components/CajaTerminal",
+    "cocina": "Pantalla de cocina → api/routes/cocina, components/KitchenDisplay",
+    "stock": "Gestión de inventario → api/routes/stock, components/StockManager",
+    "menu": "Menú diario → api/routes/menu, components/DailyMenu",
+    "reservaciones": "Reservas → api/routes/reservations, components/ReservationForm",
+    "reportes": "Analítica y reportes → api/routes/analytics, components/Dashboard",
+    "usuarios": "Gestión de roles/permisos → api/routes/users, components/UserManagement"
+  },
+  "quick_commands": {
+    "new_feature": "Quiero agregar una nueva funcionalidad al TPV (órdenes, caja, stock, etc)",
+    "fix_bug": "Necesito corregir un bug en producción",
+    "optimize": "Necesito mejorar performance de [módulo]",
+    "refactor": "Necesito refactorizar [componente/api]",
+    "security_check": "Quiero una auditoría de seguridad",
+    "review": "Necesito revisión técnica de los cambios"
+  }
+}

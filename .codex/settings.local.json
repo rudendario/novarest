@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(update-config)",
+      "Bash(awk '{print $NF}')",
+      "Bash(find src *)",
+      "Bash(awk '$1 > 500')",
+      "Bash(xargs wc *)",
+      "Bash(find src/app/api -type f -name \"route.ts\" -exec wc -l {} +)",
+      "Bash(npm run *)",
+      "Bash(claude plugin *)",
+      "Bash(npm install *)",
+      "Bash(npx vitest *)",
+      "Bash(npm test *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
