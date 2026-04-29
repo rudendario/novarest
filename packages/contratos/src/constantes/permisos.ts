@@ -1,0 +1,26 @@
+export const PERMISOS_BASE = [
+  "puedeGestionarNegocio",
+  "puedeGestionarUsuarios",
+  "puedeGestionarDispositivos",
+  "puedeVerSala",
+  "puedeAbrirMesa",
+  "puedeAnadirLineasPedido",
+  "puedeEnviarPedido",
+  "puedeCancelarLineaDirectamente",
+  "puedeSolicitarCancelacion",
+  "puedeAprobarCancelacion",
+  "puedeCobrarPedido",
+  "puedeGestionarCaja",
+  "puedeVerCaja",
+  "puedeGestionarCarta",
+  "puedePublicarCarta",
+  "puedeAjustarStock",
+  "puedeGestionarReservas",
+  "puedeGestionarCompras",
+  "puedeGestionarImpresoras",
+  "puedeVerAuditoria",
+  "puedeVerInformes",
+  "puedeVerAnalitica",
+] as const;
+
+export type PermisoBase = (typeof PERMISOS_BASE)[number];

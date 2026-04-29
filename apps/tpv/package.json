@@ -1,0 +1,37 @@
+{
+  "name": "@el-jardin/tpv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:db": "vitest run app/api/privado/informes/integracion-db.test.ts",
+    "format": "biome check . --write"
+  },
+  "dependencies": {
+    "@el-jardin/contratos": "workspace:*",
+    "@el-jardin/infra": "workspace:*",
+    "@el-jardin/ui": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^20.19.22",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "eslint": "^9.38.0",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

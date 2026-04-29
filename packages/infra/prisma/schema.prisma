@@ -1,0 +1,770 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EstadoInternoProducto {
+  disponible
+  stock_bajo
+  ultimas_unidades
+  agotado
+  pausado
+  demora
+}
+
+enum EstadoPublicoProducto {
+  visible
+  oculto
+  agotado
+  temporalmente_no_disponible
+}
+
+enum DestinoPreparacionProducto {
+  cocina
+  barra
+  ambos
+  ninguno
+}
+
+enum TipoProducto {
+  plato
+  bebida
+  ingrediente
+  combo
+}
+
+enum EstadoPedido {
+  abierto
+  enviado
+  parcialmente_servido
+  servido
+  en_cobro
+  cobrado
+  cancelado
+}
+
+enum EstadoLineaPedido {
+  pendiente
+  confirmada
+  en_preparacion
+  lista
+  servida
+  cancelada
+}
+
+enum EstadoCaja {
+  cerrada
+  abierta
+  cuadrada
+  descuadrada
+}
+
+enum MetodoPago {
+  efectivo
+  tarjeta
+  mixto
+}
+
+enum EstadoReserva {
+  pendiente
+  confirmada
+  sentada
+  completada
+  cancelada
+  no_show
+}
+
+enum EstadoListaEspera {
+  esperando
+  avisado
+  sentado
+  cancelado
+}
+
+enum TipoTicketImpresion {
+  cocina
+  barra
+  precuenta
+  recibo
+  prueba
+}
+
+enum EstadoTrabajoImpresion {
+  pendiente
+  enviado
+  error
+}
+
+enum EstadoPedidoCompra {
+  borrador
+  enviado
+  parcialmente_recibido
+  recibido
+  cancelado
+}
+
+model ConfiguracionNegocio {
+  id                String   @id @default(cuid())
+  nombreComercial   String
+  telefono          String?
+  email             String?
+  direccion         String?
+  moneda            String   @default("EUR")
+  impuestosIncluidos Boolean @default(true)
+  horarioJson       Json?
+  publicadoWeb      Boolean  @default(false)
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+}
+
+model Cliente {
+  id               String         @id @default(cuid())
+  nombre           String
+  telefono         String?
+  email            String?
+  notas            String?
+  creadoEn         DateTime       @default(now())
+  actualizadoEn    DateTime       @updatedAt
+  eliminadoEn      DateTime?
+  reservas         Reserva[]
+  entradasEspera   EntradaEspera[]
+
+  @@index([nombre])
+  @@index([telefono])
+}
+
+model RolUsuario {
+  id           String    @id @default(cuid())
+  nombre       String    @unique
+  descripcion  String?
+  activo       Boolean   @default(true)
+  creadoEn     DateTime  @default(now())
+  actualizadoEn DateTime @updatedAt
+  eliminadoEn  DateTime?
+  usuarios     Usuario[]
+}
+
+model Usuario {
+  id                 String           @id @default(cuid())
+  email              String           @unique
+  nombre             String
+  hashPassword       String
+  pinHash            String?
+  activo             Boolean          @default(true)
+  rolId              String
+  creadoEn           DateTime         @default(now())
+  actualizadoEn      DateTime         @updatedAt
+  eliminadoEn        DateTime?
+  rol                RolUsuario       @relation(fields: [rolId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  permisosAsignados  PermisoUsuario[]
+  sesiones           Sesion[]
+  registrosAuditoria RegistroAuditoria[]
+  cajasAbiertas      Caja[]             @relation("CajaAbiertaPor")
+  cajasCerradas      Caja[]             @relation("CajaCerradaPor")
+  movimientosCaja    MovimientoCaja[]
+}
+
+model PermisoUsuario {
+  id          String   @id @default(cuid())
+  usuarioId   String
+  permiso     String
+  concedido   Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([usuarioId, permiso])
+}
+
+model Dispositivo {
+  id            String   @id @default(cuid())
+  nombre        String
+  tipo          String
+  tokenVinculo  String   @unique
+  activo        Boolean  @default(true)
+  ultimaConexionEn DateTime?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+  eliminadoEn   DateTime?
+  sesiones      Sesion[]
+}
+
+model Zona {
+  id          String   @id @default(cuid())
+  nombre      String
+  orden       Int      @default(0)
+  activa      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+  eliminadoEn DateTime?
+  mesas       Mesa[]
+  impresoras  Impresora[]
+}
+
+model Mesa {
+  id               String   @id @default(cuid())
+  zonaId           String
+  nombre           String
+  codigo           String   @unique
+  capacidad        Int      @default(4)
+  activa           Boolean  @default(true)
+  pedidoActivoId   String?  @unique
+  creadaEn         DateTime @default(now())
+  actualizadaEn    DateTime @updatedAt
+  eliminadaEn      DateTime?
+  zona             Zona     @relation(fields: [zonaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pedidoActivo     Pedido?  @relation("MesaPedidoActivo", fields: [pedidoActivoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  pedidos          Pedido[] @relation("MesaPedidos")
+  reservas         Reserva[]
+
+  @@index([zonaId])
+}
+
+model Sesion {
+  id             String      @id @default(cuid())
+  usuarioId      String
+  dispositivoId  String
+  tokenHash      String      @unique
+  expiraEn       DateTime
+  revocadaEn     DateTime?
+  creadaEn       DateTime    @default(now())
+
+  usuario     Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  dispositivo Dispositivo @relation(fields: [dispositivoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([usuarioId])
+  @@index([dispositivoId])
+}
+
+model CategoriaProducto {
+  id             String    @id @default(cuid())
+  nombre         String
+  slug           String    @unique
+  orden          Int       @default(0)
+  visibleInterno Boolean   @default(true)
+  visiblePublico Boolean   @default(false)
+  creadoEn       DateTime  @default(now())
+  actualizadoEn  DateTime  @updatedAt
+  eliminadoEn    DateTime?
+  productos      Producto[]
+}
+
+model Producto {
+  id                  String                    @id @default(cuid())
+  nombre              String
+  slug                String                    @unique
+  descripcion         String?
+  precioCentimos      Int
+  tipo                TipoProducto
+  destinoPreparacion  DestinoPreparacionProducto
+  estadoInterno       EstadoInternoProducto     @default(disponible)
+  estadoPublico       EstadoPublicoProducto     @default(oculto)
+  visiblePublico      Boolean                   @default(false)
+  categoriaId         String
+  creadoEn            DateTime                  @default(now())
+  actualizadoEn       DateTime                  @updatedAt
+  eliminadoEn         DateTime?
+  categoria           CategoriaProducto         @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  imagenes            ImagenProducto[]
+  alergenos           ProductoAlergeno[]
+  platosEnMenu        PlatoMenuDia[]
+  lineasPedido        LineaPedido[]
+  stockFisico         StockFisico?
+  reservasStock       ReservaStock[]
+  movimientosStock    MovimientoStock[]
+  productosProveedor  ProductoProveedor[]
+  recetaEscandallo    RecetaEscandallo?
+  lineasEscandallo    LineaEscandallo[]
+
+  @@index([categoriaId])
+  @@index([visiblePublico, estadoPublico])
+}
+
+model Proveedor {
+  id                 String              @id @default(cuid())
+  nombre             String
+  codigo             String              @unique
+  telefono           String?
+  email              String?
+  contacto           String?
+  activo             Boolean             @default(true)
+  creadoEn           DateTime            @default(now())
+  actualizadoEn      DateTime            @updatedAt
+  eliminadoEn        DateTime?
+  productosProveedor ProductoProveedor[]
+  pedidosCompra      PedidoCompra[]
+
+  @@index([nombre, activo])
+}
+
+model ProductoProveedor {
+  id                    String                    @id @default(cuid())
+  productoId             String
+  proveedorId            String
+  referenciaProveedor    String?
+  unidadCompra           String                   @default("unidad")
+  unidadesPorCompra      Int                      @default(1)
+  precioActualCentimos   Int
+  activo                 Boolean                  @default(true)
+  creadoEn               DateTime                 @default(now())
+  actualizadoEn          DateTime                 @updatedAt
+  producto               Producto                 @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  proveedor              Proveedor                @relation(fields: [proveedorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  historialPrecios       HistorialPrecioProveedor[]
+  lineasPedidoCompra     LineaPedidoCompra[]
+
+  @@unique([productoId, proveedorId])
+  @@index([proveedorId, activo])
+  @@index([productoId, activo])
+}
+
+model HistorialPrecioProveedor {
+  id                  String            @id @default(cuid())
+  productoProveedorId String
+  precioCentimos      Int
+  motivo              String?
+  creadoEn            DateTime          @default(now())
+  productoProveedor   ProductoProveedor @relation(fields: [productoProveedorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([productoProveedorId, creadoEn])
+}
+
+model PedidoCompra {
+  id                 String               @id @default(cuid())
+  proveedorId         String
+  estado              EstadoPedidoCompra  @default(borrador)
+  fechaPedido         DateTime            @default(now())
+  fechaEsperada       DateTime?
+  totalCentimos       Int                 @default(0)
+  notas               String?
+  creadoEn            DateTime            @default(now())
+  actualizadoEn       DateTime            @updatedAt
+  proveedor           Proveedor           @relation(fields: [proveedorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lineas              LineaPedidoCompra[]
+  recepciones         RecepcionCompra[]
+
+  @@index([proveedorId, fechaPedido])
+  @@index([estado, fechaPedido])
+}
+
+model LineaPedidoCompra {
+  id                    String         @id @default(cuid())
+  pedidoCompraId         String
+  productoProveedorId    String
+  cantidad               Int
+  precioUnitCentimos     Int
+  totalLineaCentimos     Int
+  cantidadRecibida       Int           @default(0)
+  creadaEn               DateTime      @default(now())
+  pedidoCompra           PedidoCompra  @relation(fields: [pedidoCompraId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  productoProveedor      ProductoProveedor @relation(fields: [productoProveedorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lineasRecepcion        LineaRecepcionCompra[]
+
+  @@index([pedidoCompraId])
+  @@index([productoProveedorId])
+}
+
+model RecepcionCompra {
+  id                 String               @id @default(cuid())
+  pedidoCompraId      String
+  recibidaEn          DateTime             @default(now())
+  notas               String?
+  creadaEn            DateTime             @default(now())
+  pedidoCompra        PedidoCompra         @relation(fields: [pedidoCompraId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  lineas              LineaRecepcionCompra[]
+
+  @@index([pedidoCompraId, recibidaEn])
+}
+
+model LineaRecepcionCompra {
+  id                  String            @id @default(cuid())
+  recepcionCompraId    String
+  lineaPedidoCompraId  String
+  cantidadRecibida     Int
+  creadaEn             DateTime          @default(now())
+  recepcionCompra      RecepcionCompra   @relation(fields: [recepcionCompraId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  lineaPedidoCompra    LineaPedidoCompra @relation(fields: [lineaPedidoCompraId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([recepcionCompraId])
+  @@index([lineaPedidoCompraId])
+}
+
+model RecetaEscandallo {
+  id                 String            @id @default(cuid())
+  productoFinalId     String            @unique
+  nombre              String
+  porciones           Int               @default(1)
+  mermaPct            Int               @default(0)
+  activa              Boolean           @default(true)
+  creadoEn            DateTime          @default(now())
+  actualizadoEn       DateTime          @updatedAt
+  productoFinal       Producto          @relation(fields: [productoFinalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lineas              LineaEscandallo[]
+
+  @@index([activa, actualizadoEn])
+}
+
+model LineaEscandallo {
+  id                 String           @id @default(cuid())
+  recetaId            String
+  productoId          String
+  cantidadUnidades    Int
+  unidadUso           String           @default("unidad")
+  creadoEn            DateTime         @default(now())
+  receta              RecetaEscandallo @relation(fields: [recetaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto            Producto         @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([recetaId, productoId])
+  @@index([productoId])
+}
+
+model Alergeno {
+  id          String            @id @default(cuid())
+  codigo      String            @unique
+  nombre      String
+  creadoEn    DateTime          @default(now())
+  actualizadoEn DateTime        @updatedAt
+  productos   ProductoAlergeno[]
+}
+
+model ProductoAlergeno {
+  productoId String
+  alergenoId String
+
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  alergeno Alergeno @relation(fields: [alergenoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([productoId, alergenoId])
+}
+
+model ImagenProducto {
+  id          String   @id @default(cuid())
+  productoId  String
+  url         String
+  textoAlt    String?
+  orden       Int      @default(0)
+  creadoEn    DateTime @default(now())
+
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([productoId])
+}
+
+model MenuDia {
+  id             String        @id @default(cuid())
+  fecha          DateTime
+  titulo         String
+  descripcion    String?
+  precioCentimos Int
+  publicado      Boolean       @default(false)
+  creadoEn       DateTime      @default(now())
+  actualizadoEn  DateTime      @updatedAt
+  eliminadoEn    DateTime?
+  cursos         CursoMenuDia[]
+
+  @@unique([fecha])
+}
+
+model CursoMenuDia {
+  id           String         @id @default(cuid())
+  menuDiaId    String
+  nombre       String
+  orden        Int            @default(0)
+  creadoEn     DateTime       @default(now())
+  menuDia      MenuDia        @relation(fields: [menuDiaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  platos       PlatoMenuDia[]
+
+  @@index([menuDiaId])
+}
+
+model PlatoMenuDia {
+  id            String      @id @default(cuid())
+  cursoMenuDiaId String
+  productoId     String
+  orden          Int        @default(0)
+
+  cursoMenuDia CursoMenuDia @relation(fields: [cursoMenuDiaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto     Producto     @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([cursoMenuDiaId, productoId])
+  @@index([productoId])
+}
+
+model Pedido {
+  id                  String                @id @default(cuid())
+  mesaId              String
+  estado              EstadoPedido          @default(abierto)
+  totalCentimos       Int                   @default(0)
+  nota                String?
+  abiertoEn           DateTime              @default(now())
+  enviadoEn           DateTime?
+  cerradoEn           DateTime?
+  creadoPorUsuarioId  String?
+  actualizadoEn       DateTime              @updatedAt
+  eliminadoEn         DateTime?
+  mesa                Mesa                  @relation("MesaPedidos", fields: [mesaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lineas              LineaPedido[]
+  solicitudesCancelacion SolicitudCancelacion[]
+  mesaActivaEn        Mesa?                 @relation("MesaPedidoActivo")
+  pagos               PagoPedido[]
+  sesionesPago        SesionPago[]
+
+  @@index([mesaId, estado])
+  @@index([abiertoEn])
+}
+
+model Reserva {
+  id                  String             @id @default(cuid())
+  clienteId            String?
+  mesaId               String?
+  nombreCliente        String
+  telefonoContacto     String?
+  fechaHora            DateTime
+  comensales           Int
+  estado               EstadoReserva     @default(pendiente)
+  notas                String?
+  creadaEn             DateTime           @default(now())
+  actualizadaEn        DateTime           @updatedAt
+  canceladaEn          DateTime?
+  cliente              Cliente?           @relation(fields: [clienteId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  mesa                 Mesa?              @relation(fields: [mesaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([fechaHora, estado])
+  @@index([clienteId, fechaHora])
+  @@index([mesaId, fechaHora])
+}
+
+model EntradaEspera {
+  id                  String             @id @default(cuid())
+  clienteId            String?
+  nombreCliente        String
+  telefonoContacto     String?
+  comensales           Int
+  estado               EstadoListaEspera @default(esperando)
+  notas                String?
+  creadaEn             DateTime          @default(now())
+  actualizadaEn        DateTime          @updatedAt
+  atendidaEn           DateTime?
+  cliente              Cliente?          @relation(fields: [clienteId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([estado, creadaEn])
+}
+
+model Caja {
+  id               String         @id @default(cuid())
+  estado           EstadoCaja     @default(abierta)
+  abiertaEn        DateTime       @default(now())
+  cerradaEn        DateTime?
+  saldoInicial     Int            @default(0)
+  saldoFinal       Int?
+  totalEfectivo    Int            @default(0)
+  totalTarjeta     Int            @default(0)
+  abiertaPorId     String?
+  cerradaPorId     String?
+  abiertaPor       Usuario?       @relation("CajaAbiertaPor", fields: [abiertaPorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  cerradaPor       Usuario?       @relation("CajaCerradaPor", fields: [cerradaPorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  movimientos      MovimientoCaja[]
+  pagos            PagoPedido[]
+  sesionesPago     SesionPago[]
+
+  @@index([estado, abiertaEn])
+}
+
+model MovimientoCaja {
+  id             String    @id @default(cuid())
+  cajaId          String
+  tipo            String
+  metodo          MetodoPago?
+  cantidad        Int
+  motivo          String?
+  pedidoId        String?
+  creadoEn        DateTime  @default(now())
+  creadoPorId     String?
+  caja            Caja      @relation(fields: [cajaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  creadoPor       Usuario?  @relation(fields: [creadoPorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([cajaId, creadoEn])
+}
+
+model PagoPedido {
+  id                  String     @id @default(cuid())
+  pedidoId             String
+  cajaId               String
+  metodo               MetodoPago
+  montoTotal           Int
+  montoEfectivo        Int       @default(0)
+  montoTarjeta         Int       @default(0)
+  cobradoEn            DateTime  @default(now())
+  pedido               Pedido    @relation(fields: [pedidoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  caja                 Caja      @relation(fields: [cajaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sesionPagoId         String?
+  sesionPago           SesionPago? @relation(fields: [sesionPagoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([pedidoId, cobradoEn])
+  @@index([cajaId, cobradoEn])
+}
+
+model SesionPago {
+  id              String        @id @default(cuid())
+  pedidoId         String
+  cajaId           String
+  totalObjetivo    Int
+  totalAcumulado   Int          @default(0)
+  completada       Boolean      @default(false)
+  creadaEn         DateTime     @default(now())
+  cerradaEn        DateTime?
+  pedido           Pedido       @relation(fields: [pedidoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  caja             Caja         @relation(fields: [cajaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pagosDivididos   PagoDividido[]
+  pagosPedido      PagoPedido[]
+
+  @@index([pedidoId, creadaEn])
+  @@index([cajaId, creadaEn])
+}
+
+model PagoDividido {
+  id               String      @id @default(cuid())
+  sesionPagoId      String
+  indice            Int
+  metodo            MetodoPago
+  montoTotal        Int
+  montoEfectivo     Int        @default(0)
+  montoTarjeta      Int        @default(0)
+  creadoEn          DateTime   @default(now())
+  sesionPago        SesionPago @relation(fields: [sesionPagoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([sesionPagoId, indice])
+  @@index([sesionPagoId, creadoEn])
+}
+
+model LineaPedido {
+  id                String            @id @default(cuid())
+  pedidoId          String
+  productoId        String
+  nombreSnapshot    String
+  precioUnitCentimos Int
+  cantidad          Int               @default(1)
+  estado            EstadoLineaPedido @default(pendiente)
+  nota              String?
+  creadoEn          DateTime          @default(now())
+  actualizadoEn     DateTime          @updatedAt
+  canceladoEn       DateTime?
+  pedido            Pedido            @relation(fields: [pedidoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto          Producto          @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reservasStock     ReservaStock[]
+
+  @@index([pedidoId, estado])
+  @@index([productoId])
+}
+
+model StockFisico {
+  id                String   @id @default(cuid())
+  productoId         String   @unique
+  cantidadDisponible Int      @default(0)
+  actualizadoEn      DateTime @updatedAt
+  producto           Producto @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model ReservaStock {
+  id           String      @id @default(cuid())
+  productoId   String
+  lineaPedidoId String
+  cantidad     Int
+  activa       Boolean     @default(true)
+  creadaEn     DateTime    @default(now())
+  liberadaEn   DateTime?
+  producto     Producto    @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lineaPedido  LineaPedido @relation(fields: [lineaPedidoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([productoId, lineaPedidoId])
+  @@index([productoId, activa])
+}
+
+model MovimientoStock {
+  id             String   @id @default(cuid())
+  productoId      String
+  tipo            String
+  cantidad        Int
+  motivo          String?
+  referenciaTipo  String?
+  referenciaId    String?
+  creadoEn        DateTime @default(now())
+  producto        Producto  @relation(fields: [productoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([productoId, creadoEn])
+}
+
+model SolicitudCancelacion {
+  id                  String   @id @default(cuid())
+  pedidoId            String
+  lineaPedidoId       String?
+  motivo              String
+  solicitadaPorUsuarioId String?
+  aprobadaPorUsuarioId String?
+  aprobada            Boolean?
+  creadaEn            DateTime @default(now())
+  resueltaEn          DateTime?
+  pedido              Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([pedidoId, creadaEn])
+}
+
+model RegistroAuditoria {
+  id              String   @id @default(cuid())
+  usuarioId       String?
+  rolNombre       String
+  accion          String
+  entidad         String
+  entidadId       String
+  valoresPrevios  Json?
+  valoresNuevos   Json?
+  motivo          String?
+  ip              String?
+  requestId       String?
+  creadoEn        DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([entidad, entidadId])
+  @@index([creadoEn])
+}
+
+model Impresora {
+  id               String            @id @default(cuid())
+  nombre           String
+  zonaId           String?
+  activa           Boolean           @default(true)
+  tipoConexion     String            @default("red")
+  endpoint         String?
+  prioridad        Int               @default(0)
+  creadoEn         DateTime          @default(now())
+  actualizadoEn    DateTime          @updatedAt
+  eliminadoEn      DateTime?
+  zona             Zona?             @relation(fields: [zonaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  trabajos         TrabajoImpresion[]
+
+  @@index([zonaId, activa, prioridad])
+}
+
+model TrabajoImpresion {
+  id                  String                @id @default(cuid())
+  impresoraId          String?
+  tipoTicket           TipoTicketImpresion
+  estado               EstadoTrabajoImpresion @default(pendiente)
+  referenciaTipo       String?
+  referenciaId         String?
+  contenido            Json
+  errorDetalle         String?
+  intentos             Int                   @default(0)
+  creadoEn             DateTime              @default(now())
+  enviadoEn            DateTime?
+  impresora            Impresora?            @relation(fields: [impresoraId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([estado, creadoEn])
+  @@index([tipoTicket, creadoEn])
+}

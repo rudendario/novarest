@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: tpv-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tpv
+      POSTGRES_PASSWORD: tpv
+      POSTGRES_DB: tpv
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -31,6 +31,7 @@ Documentos rectores:
 - `pnpm format` — Biome format.
 - `pnpm type-check` — TypeScript sin emitir.
 - `pnpm test` — Vitest.
+- `pnpm test:db` — pruebas de integracion DB de `apps/tpv` (requiere `RUN_DB_TESTS=1` y `DATABASE_URL` valida).
 - `pnpm db:up` — levantar Postgres en Docker.
 - `pnpm db:down` — apagar Docker.
 - `pnpm db:migrate` — Prisma migrate dev.
@@ -51,6 +52,20 @@ pnpm db:up
 pnpm db:migrate
 pnpm db:seed
 pnpm dev
+```
+
+## Ejecutar pruebas de integracion DB (informes)
+
+Estas pruebas estan preparadas para no romper entornos sin Postgres activo.
+
+- PowerShell:
+```powershell
+$env:RUN_DB_TESTS="1"
+pnpm test:db
+```
+- Bash:
+```bash
+RUN_DB_TESTS=1 pnpm test:db
 ```
 
 ## Restricciones v1 (no negociables)

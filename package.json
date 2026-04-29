@@ -1,26 +1,22 @@
 {
-  "name": "novarest",
+  "name": "@el-jardin/raiz",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.2.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "dev": "pnpm --filter @el-jardin/tpv dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "type-check": "pnpm -r type-check",
+    "test": "pnpm -r test",
+    "test:db": "corepack pnpm --filter @el-jardin/tpv test:db",
+    "format": "pnpm -r format",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @el-jardin/infra db:migrate",
+    "db:seed": "pnpm --filter @el-jardin/infra db:seed"
   }
 }
