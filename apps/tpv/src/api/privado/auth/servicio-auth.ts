@@ -113,6 +113,26 @@ export async function verificarSecreto(hashGuardado: string, textoPlano: string)
   return verify(hashGuardado, textoPlano);
 }
 
+export async function verificarSecretoConMigracion(
+  valorGuardado: string,
+  textoPlano: string,
+  actualizarHash: (nuevoHash: string) => Promise<void>,
+) {
+  if (valorGuardado.startsWith("$argon2")) {
+    return verify(valorGuardado, textoPlano);
+  }
+
+  // Compatibilidad legacy: solo migrar si el secreto antiguo coincide exactamente.
+  const coincideLegacy = valorGuardado === textoPlano;
+  if (!coincideLegacy) {
+    return false;
+  }
+
+  const nuevoHash = await hashSecreto(textoPlano);
+  await actualizarHash(nuevoHash);
+  return true;
+}
+
 export async function crearSesion(params: {
   usuarioId: string;
   dispositivoId: string;

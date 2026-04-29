@@ -32,8 +32,16 @@ yarn-error.log*
 # env files
 .env*
 
+# backups locales
+backups/
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
+
+# agentes de IA
+.agents*
+.codex*
+aplicacion-requisitos.md

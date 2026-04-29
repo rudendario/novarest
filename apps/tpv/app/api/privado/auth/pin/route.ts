@@ -3,12 +3,12 @@ import { z } from "zod";
 
 import { clientePrisma } from "@el-jardin/infra";
 
+import { crearRequestId, registrarErrorApi } from "@/src/api/logging";
 import {
   crearSesion,
-  hashSecreto,
   obtenerIpRequest,
   validarRateLimitAuth,
-  verificarSecreto,
+  verificarSecretoConMigracion,
 } from "@/src/api/privado/auth/servicio-auth";
 import { responderErrorApi } from "@/src/api/publico/respuestas";
 
@@ -50,17 +50,12 @@ export async function POST(request: NextRequest) {
       const pinHash = candidato.pinHash;
       if (!pinHash) continue;
 
-      if (!pinHash.startsWith("$argon2")) {
-        const nuevoHash = await hashSecreto(entrada.pin);
+      const ok = await verificarSecretoConMigracion(pinHash, entrada.pin, async (nuevoHash) => {
         await clientePrisma.usuario.update({
           where: { id: candidato.id },
           data: { pinHash: nuevoHash },
         });
-        usuarioValido = { ...candidato, pinHash: nuevoHash };
-        break;
-      }
-
-      const ok = await verificarSecreto(pinHash, entrada.pin);
+      });
       if (ok) {
         usuarioValido = candidato;
         break;
@@ -98,7 +93,21 @@ export async function POST(request: NextRequest) {
     });
 
     return respuesta;
-  } catch {
-    return responderErrorApi(400, "solicitud_invalida", "Datos invalidos para login por PIN");
+  } catch (error) {
+    const requestId = crearRequestId();
+    registrarErrorApi({
+      requestId,
+      scope: "api_privada_auth_pin",
+      ruta: "/api/privado/auth/pin",
+      metodo: "POST",
+      detalle: "fallo_proceso_login_pin",
+      error,
+    });
+    return responderErrorApi(
+      400,
+      "solicitud_invalida",
+      "Datos invalidos para login por PIN",
+      requestId,
+    );
   }
 }

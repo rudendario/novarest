@@ -14,8 +14,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const continuar = NextResponse.next();
+  continuar.headers.set("X-Content-Type-Options", "nosniff");
+  continuar.headers.set("X-Frame-Options", "DENY");
+  continuar.headers.set("Referrer-Policy", "no-referrer");
+
   if (rutasAuthPublicas.some((ruta) => path.startsWith(ruta))) {
-    return NextResponse.next();
+    return continuar;
   }
 
   const auth = request.headers.get("authorization");
@@ -29,7 +34,7 @@ export function proxy(request: NextRequest) {
     );
   }
 
-  return NextResponse.next();
+  return continuar;
 }
 
 export const config = {

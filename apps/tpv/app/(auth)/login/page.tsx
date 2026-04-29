@@ -15,8 +15,11 @@ export default async function PaginaLogin() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[75vh] w-full max-w-5xl items-center justify-center px-4">
+    <main
+      className="mx-auto flex min-h-[75vh] w-full max-w-5xl items-center justify-center px-4"
+      id="contenido-principal"
+    >
       <FormLogin />
-    </div>
+    </main>
   );
 }

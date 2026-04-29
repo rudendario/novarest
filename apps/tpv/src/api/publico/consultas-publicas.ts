@@ -19,6 +19,15 @@ async function construirPlatosPublicosDesdeIds(idsProducto: string[]): Promise<P
       eliminadoEn: null,
     },
     orderBy: [{ nombre: "asc" }],
+    select: {
+      id: true,
+      categoriaId: true,
+      slug: true,
+      nombre: true,
+      descripcion: true,
+      precioCentimos: true,
+      estadoPublico: true,
+    },
   });
 
   const categorias = await clientePrisma.categoriaProducto.findMany({
@@ -133,9 +142,84 @@ export async function obtenerPlatosPublicos(): Promise<PlatoPublicoDto[]> {
       visiblePublico: true,
       eliminadoEn: null,
     },
+    orderBy: [{ nombre: "asc" }],
+    select: {
+      id: true,
+      categoriaId: true,
+      slug: true,
+      nombre: true,
+      descripcion: true,
+      precioCentimos: true,
+      estadoPublico: true,
+    },
   });
 
-  return construirPlatosPublicosDesdeIds(productos.map((producto) => producto.id));
+  if (productos.length === 0) {
+    return [];
+  }
+
+  const categorias = await clientePrisma.categoriaProducto.findMany({
+    where: { id: { in: productos.map((producto) => producto.categoriaId) } },
+  });
+  const categoriasPorId = new Map(
+    categorias.map((categoria) => [categoria.id, categoria] as const),
+  );
+
+  const imagenes = await clientePrisma.imagenProducto.findMany({
+    where: { productoId: { in: productos.map((producto) => producto.id) } },
+    orderBy: [{ orden: "asc" }],
+  });
+  const imagenPrincipalPorProducto = new Map<string, string>();
+  for (const imagen of imagenes) {
+    if (!imagenPrincipalPorProducto.has(imagen.productoId)) {
+      imagenPrincipalPorProducto.set(imagen.productoId, imagen.url);
+    }
+  }
+
+  const vinculosAlergeno = await clientePrisma.productoAlergeno.findMany({
+    where: { productoId: { in: productos.map((producto) => producto.id) } },
+  });
+  const alergenos = await clientePrisma.alergeno.findMany({
+    where: { id: { in: vinculosAlergeno.map((vinculo) => vinculo.alergenoId) } },
+  });
+
+  const nombreAlergenoPorId = new Map(alergenos.map((alergeno) => [alergeno.id, alergeno.nombre]));
+  const alergenosPorProducto = new Map<string, string[]>();
+  for (const vinculo of vinculosAlergeno) {
+    const nombre = nombreAlergenoPorId.get(vinculo.alergenoId);
+    if (!nombre) continue;
+    const actuales = alergenosPorProducto.get(vinculo.productoId) ?? [];
+    actuales.push(nombre);
+    alergenosPorProducto.set(vinculo.productoId, actuales);
+  }
+
+  return productos
+    .map((producto) => {
+      if (producto.estadoPublico === "oculto") {
+        return null;
+      }
+      const categoria = categoriasPorId.get(producto.categoriaId);
+      if (!categoria || !categoria.visiblePublico || categoria.eliminadoEn) {
+        return null;
+      }
+
+      return {
+        id: producto.id,
+        slug: producto.slug,
+        nombre: producto.nombre,
+        descripcion: producto.descripcion,
+        precioCentimos: producto.precioCentimos,
+        imagenUrl: imagenPrincipalPorProducto.get(producto.id) ?? null,
+        alergenos: alergenosPorProducto.get(producto.id) ?? [],
+        categoria: {
+          id: categoria.id,
+          nombre: categoria.nombre,
+          slug: categoria.slug,
+        },
+        estadoPublico: producto.estadoPublico,
+      } satisfies PlatoPublicoDto;
+    })
+    .filter((plato): plato is PlatoPublicoDto => plato !== null);
 }
 
 export async function obtenerPlatoPublicoPorSlug(slug: string): Promise<PlatoPublicoDto | null> {

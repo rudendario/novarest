@@ -2,6 +2,7 @@ import { esquemaPlatoPublico } from "@el-jardin/contratos";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { crearRequestId, registrarErrorApi } from "@/src/api/logging";
 import { obtenerPlatoPublicoPorSlug } from "@/src/api/publico/consultas-publicas";
 import { validarRateLimit } from "@/src/api/publico/rate-limit";
 import { responderErrorApi, responderOk } from "@/src/api/publico/respuestas";
@@ -38,7 +39,16 @@ export async function GET(request: NextRequest, { params }: Params) {
     const payload = esquemaPlatoPublico.parse(plato);
 
     return responderOk(payload, 180);
-  } catch {
-    return responderErrorApi(500, "error_interno", "No se pudo consultar el plato");
+  } catch (error) {
+    const requestId = crearRequestId();
+    registrarErrorApi({
+      requestId,
+      scope: "api_publica_plato_detalle",
+      ruta: "/api/publico/platos/[slug]",
+      metodo: "GET",
+      detalle: "fallo_consulta_plato_publico_por_slug",
+      error,
+    });
+    return responderErrorApi(500, "error_interno", "No se pudo consultar el plato", requestId);
   }
 }

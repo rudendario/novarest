@@ -156,6 +156,86 @@ Reglas de sintonia:
 
 ## 10. Bitacora de acciones
 
+### [2026-04-29 22:21] Fase 14 - crear checklist de despliegue (cierre de bloque)
+- Objetivo: completar el ultimo paso de Fase 14 con una guia operativa de despliegue y rollback.
+- Cambio aplicado: creado `docs/checklist-despliegue-mvp.md` con checklist accionable por etapas (pre-despliegue, backup, migraciones deploy, smoke post-despliegue, seguridad/observabilidad, rollback y cierre); actualizado `README.md` para incluir el checklist dentro de documentos rectores.
+- Archivos: `docs/checklist-despliegue-mvp.md`, `README.md`, `AGENTS.md`.
+- Validacion: revision manual de consistencia contra gate de Fase 14 (`login -> apertura mesa -> pedido -> cocina/barra -> cobro -> stock -> cierre caja -> informe`) y contra scripts operativos existentes (`gate:full`, `db:migrate:status`, `db:migrate:deploy`, `db:backup`, `db:restore`).
+- Estado del plan: paso `Crear checklist de despliegue` completado; bloque de Fase 14 queda cubierto de extremo a extremo.
+- Riesgos / pendientes: falta ejecutar este checklist en un despliegue real controlado y registrar tiempos reales (RTO/RPO, duracion de smoke y rollback) para afinar version operativa final.
+
+### [2026-04-29 22:19] Fase 14 - revisar a11y basica y aplicar mejoras WCAG iniciales
+- Objetivo: ejecutar el paso de accesibilidad basica de Fase 14 sobre layouts y formulario critico de login.
+- Cambio aplicado: ajustado idioma base del documento a `es`; anadido enlace `Saltar al contenido principal`; anadidos `id="contenido-principal"` en layouts/publico-privado y pagina login; agregados `aria-label` a navegaciones principales; mejorada semantica de selector login (`role=tablist/tab` + `aria-selected`); error de login marcado como `role="alert"` con `aria-live="assertive"`; componente `Campo` de `packages/ui` actualizado para asociar `label` con `input` mediante `htmlFor/id` automatico.
+- Archivos: `apps/tpv/app/layout.tsx`, `apps/tpv/app/(publico)/layout.tsx`, `apps/tpv/app/(privado)/layout.tsx`, `apps/tpv/app/(auth)/login/page.tsx`, `apps/tpv/app/(auth)/login/form-login.tsx`, `packages/ui/src/formularios/campo.tsx`, `AGENTS.md`.
+- Validacion: `corepack pnpm -r format` OK; `corepack pnpm -r lint` OK; `corepack pnpm -r type-check` OK.
+- Estado del plan: paso `Revisar a11y basica` completado con mejoras de navegacion por teclado, etiquetas semanticas y anuncios de error.
+- Riesgos / pendientes: faltaria auditoria automatizada con axe/Lighthouse y contraste de color detallado en todas las pantallas privadas para cierre completo de accesibilidad operativa.
+
+### [2026-04-29 22:16] Fase 14 - revisar backups/migraciones y formalizar operacion DB
+- Objetivo: ejecutar el paso de Fase 14 sobre backups/migraciones dejando proceso reproducible para recuperacion y despliegue.
+- Cambio aplicado: anadidos scripts Prisma de estado/despliegue (`db:migrate:status`, `db:migrate:deploy`) en `packages/infra` y raiz; creados scripts PowerShell de backup/restore (`scripts/db-backup.ps1`, `scripts/db-restore.ps1`); documentado procedimiento operativo en `README.md` (estado de migraciones, deploy, backup y restore); anadido `backups/` a `.gitignore` para evitar versionar dumps locales.
+- Archivos: `packages/infra/package.json`, `package.json`, `scripts/db-backup.ps1`, `scripts/db-restore.ps1`, `README.md`, `.gitignore`, `AGENTS.md`.
+- Validacion: `corepack pnpm --filter @el-jardin/infra lint` OK; `corepack pnpm --filter @el-jardin/infra type-check` OK; `corepack pnpm db:migrate:status` OK (`Database schema is up to date`); `powershell -ExecutionPolicy Bypass -File scripts/db-backup.ps1 -OutputFile backups/tpv_test.sql` OK.
+- Estado del plan: paso `Revisar backups/migraciones` completado con proceso operativo explicito y probado en entorno local.
+- Riesgos / pendientes: falta automatizar backup programado y prueba periodica de restore en entorno de staging para validar RTO/RPO reales; Prisma advierte deprecacion de `package.json#prisma` (migrar a `prisma.config.ts` en iteracion futura).
+
+### [2026-04-29 22:14] Fase 14 - revisar errores y logging (trazabilidad + requestId)
+- Objetivo: ejecutar el paso de Fase 14 sobre errores/logging para mejorar observabilidad sin exponer datos sensibles.
+- Cambio aplicado: creada capa de logging API en `apps/tpv/src/api/logging.ts` con `requestId` y serializacion controlada de errores; actualizado `responderErrorApi` para adjuntar header `X-Request-Id` cuando exista; aplicados logs estructurados + `requestId` en fallos `500` de API publica (`/api/publico/carta`, `/api/publico/negocio`, `/api/publico/menu-dia`, `/api/publico/categorias`, `/api/publico/platos`, `/api/publico/platos/[slug]`) y en errores de auth de entrada (`/api/privado/auth/login`, `/api/privado/auth/pin`).
+- Archivos: `apps/tpv/src/api/logging.ts`, `apps/tpv/src/api/publico/respuestas.ts`, `apps/tpv/app/api/publico/carta/route.ts`, `apps/tpv/app/api/publico/negocio/route.ts`, `apps/tpv/app/api/publico/menu-dia/route.ts`, `apps/tpv/app/api/publico/categorias/route.ts`, `apps/tpv/app/api/publico/platos/route.ts`, `apps/tpv/app/api/publico/platos/[slug]/route.ts`, `apps/tpv/app/api/privado/auth/login/route.ts`, `apps/tpv/app/api/privado/auth/pin/route.ts`, `AGENTS.md`.
+- Validacion: `corepack pnpm --filter @el-jardin/tpv format` OK; `corepack pnpm --filter @el-jardin/tpv lint` OK; `corepack pnpm --filter @el-jardin/tpv type-check` OK; `corepack pnpm --filter @el-jardin/tpv test` OK.
+- Estado del plan: paso `Revisar errores y logging` ejecutado con mejora concreta de trazabilidad operacional y correlacion de incidencias.
+- Riesgos / pendientes: queda pendiente extender este patron de logging estructurado a todos los endpoints privados de mutacion critica (caja, pedidos, stock, compras) y centralizar envio a backend de logs externo para produccion.
+
+### [2026-04-29 22:12] Fase 14 - revision de performance de API publica
+- Objetivo: ejecutar el paso de performance de API publica en Fase 14 identificando cuellos de botella de consulta/proyeccion.
+- Cambio aplicado: optimizada `obtenerPlatosPublicos` para eliminar doble lectura de `Producto` en cada request publico (antes se hacia una consulta inicial y otra adicional por `ids`); anadido `select` explicito de campos minimos en consulta de platos para reducir transferencia y parseo; mantenida proyeccion segura de DTO publico.
+- Archivos: `apps/tpv/src/api/publico/consultas-publicas.ts`, `AGENTS.md`.
+- Validacion: `corepack pnpm --filter @el-jardin/tpv lint` OK; `corepack pnpm --filter @el-jardin/tpv type-check` OK; `corepack pnpm --filter @el-jardin/tpv test -- app/api/publico` OK (suite general de `apps/tpv` verde en la ejecucion).
+- Estado del plan: paso `Revisar performance de API publica` ejecutado con mejora aplicada en endpoint de mayor volumen (`/api/publico/platos` y derivaciones de carta/menu).
+- Riesgos / pendientes: falta medir con prueba de carga formal (p95/p99) en entorno similar a produccion y revisar indices DB especificos para filtros publicos (`visiblePublico`, `eliminadoEn`, `estadoPublico`).
+
+### [2026-04-29 22:09] Fase 14 - ejecutar security review y corregir riesgos criticos de auth
+- Objetivo: completar el paso `security review` de Fase 14 con auditoria aplicada a auth/permisos/API/headers y cierre de hallazgos criticos.
+- Cambio aplicado: corregida vulnerabilidad de migracion legacy en login y PIN (antes permitia aceptar secreto incorrecto al migrar hash); creada utilidad `verificarSecretoConMigracion` para verificar secreto legacy por igualdad exacta y migrar a Argon2 solo si coincide; endurecido borrado de cookie de sesion en logout con `httpOnly`/`sameSite`/`secure`; eliminados valores por defecto sensibles en formulario de login (`email/password/pin`); anadidos headers defensivos basicos en `proxy` para API privada (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
+- Archivos: `apps/tpv/src/api/privado/auth/servicio-auth.ts`, `apps/tpv/app/api/privado/auth/login/route.ts`, `apps/tpv/app/api/privado/auth/pin/route.ts`, `apps/tpv/app/api/privado/auth/logout/route.ts`, `apps/tpv/app/(auth)/login/form-login.tsx`, `apps/tpv/proxy.ts`, `apps/tpv/app/api/privado/flujo-critico-db.test.ts`, `AGENTS.md`.
+- Validacion: `corepack pnpm -r format` OK; `corepack pnpm -r lint` OK; `corepack pnpm -r type-check` OK; `corepack pnpm --filter @el-jardin/tpv test` OK; `DATABASE_URL=postgresql://tpv:tpv@localhost:5432/tpv`; `RUN_DB_TESTS=1`; `corepack pnpm test:db` OK (2 suites, 5 tests).
+- Estado del plan: paso `security review` de Fase 14 ejecutado con correcciones criticas aplicadas y evidencia automatizada verde.
+- Riesgos / pendientes: rate-limit actual sigue en memoria de proceso (insuficiente para multiinstancia); falta definir headers de seguridad tambien para API publica y capa HTML completa en despliegue final.
+
+### [2026-04-29 22:06] Fase 14 - ejecutar matriz QA completa (evidencia automatizada)
+- Objetivo: completar el siguiente paso oficial de Fase 14 en `plan-desarrollo.md` ejecutando matriz QA del MVP.
+- Cambio aplicado: ejecutada matriz QA automatizada en dos capas: (1) regresion general (`pnpm -r test`) cubriendo API privada/publica, informes, auditoria y cliente realtime; (2) integracion DB real (`pnpm test:db` con `RUN_DB_TESTS=1` + `DATABASE_URL`) cubriendo flujo critico end-to-end (login -> mesa/pedido -> cocina/barra -> cobro -> stock -> cierre caja -> informe) y escenarios de cobro mixto/dividido + cierre descuadrado.
+- Archivos: `AGENTS.md`.
+- Validacion: `corepack pnpm -r test` OK (apps/tpv: 10 suites verdes + 2 suites DB marcadas `skipped` sin flag); `DATABASE_URL=postgresql://tpv:tpv@localhost:5432/tpv`; `RUN_DB_TESTS=1`; `corepack pnpm test:db` OK (2 suites, 5 tests verdes).
+- Estado del plan: paso `Ejecutar matriz QA completa` de Fase 14 completado con evidencia reproducible.
+- Riesgos / pendientes: quedan pruebas manuales/no funcionales para cierre total de fase (security review, performance API publica, a11y basica, checklist de despliegue); en paquetes no `apps/tpv` aun hay placeholder de tests.
+
+### [2026-04-29 22:03] Continuar Fase 14 - integrar test DB en pipeline recurrente
+- Objetivo: cerrar pendiente del plan incorporando `test:db` de forma recurrente en gates de calidad.
+- Cambio aplicado: ampliado `apps/tpv` para que `test:db` ejecute ambas suites de integracion real (`integracion-db` y `flujo-critico-db`); agregado script raiz `gate:full` que encadena `format + lint + type-check + test + test:db + build`; actualizado `README.md` con nuevos scripts y alcance de pruebas DB.
+- Archivos: `apps/tpv/package.json`, `package.json`, `README.md`, `AGENTS.md`.
+- Validacion: `DATABASE_URL=postgresql://tpv:tpv@localhost:5432/tpv`; `RUN_DB_TESTS=1`; `corepack pnpm test:db` OK (2 files, 5 tests); `corepack pnpm gate:full` OK (incluye `test:db` y build Next verde).
+- Estado del plan: Fase 14 avanza con pipeline de validacion integral recurrente y evidencia DB real en cada gate completo.
+- Riesgos / pendientes: `gate:full` requiere DB disponible; en entornos sin Postgres activo se debe usar gate parcial sin `test:db` o aprovisionar Docker antes de ejecutar.
+
+### [2026-04-29 21:42] Cierre de gate global - hardening Fase 14
+- Objetivo: validar cierre tecnico del bloque actual de Fase 14 conforme a gates globales del `plan-desarrollo.md`.
+- Cambio aplicado: ejecucion de gates globales de workspace tras estabilizacion de pruebas realtime cliente.
+- Archivos: `AGENTS.md`.
+- Validacion: `corepack pnpm -r format` OK; `corepack pnpm -r lint` OK; `corepack pnpm -r type-check` OK; `corepack pnpm -r build` OK (incluye `@el-jardin/tpv` Next build verde con rutas privadas/publicas activas).
+- Estado del plan: bloque de hardening actual queda consolidado con gates globales en verde.
+- Riesgos / pendientes: mantener suite `test:db` dentro de pipeline recurrente para detectar regresiones de integracion en flujo critico/caja/realtime.
+
+### [2026-04-29 21:20] Avanzar Fase 14 - estabilizacion tests realtime cliente
+- Objetivo: continuar Fase 14 del `plan-desarrollo.md` eliminando flakiness en pruebas de reconexion/replay del cliente realtime.
+- Cambio aplicado: ajustado `apps/tpv/src/cliente-api/realtime.test.ts` para sincronizar assertions con el flujo asincrono real (`fetch backlog` + apertura `EventSource`) usando `vi.waitFor` en lugar de esperas de microtarea fragiles; se mantienen validaciones de deduplicacion por `id`, replay desde backlog y reconexion solicitando `desdeId` correcto.
+- Archivos: `apps/tpv/src/cliente-api/realtime.test.ts`, `AGENTS.md`.
+- Validacion: `DATABASE_URL=postgresql://tpv:tpv@localhost:5432/tpv`; `RUN_DB_TESTS=1`; `corepack pnpm --filter @el-jardin/tpv test -- src/cliente-api/realtime.test.ts` OK (12 files, 27 tests).
+- Estado del plan: Fase 14 progresa con hardening de calidad en capa realtime cliente.
+- Riesgos / pendientes: ejecutar gate global completo (`format`, `lint`, `type-check`, `build`) en siguiente bloque de cierre de fase para consolidar entrega integral.
+
 ### [2026-04-29 10:37] Avanzar Fase 13 - desgloses por producto/categoria/turno con permisos
 - Objetivo: continuar Fase 13 del `plan-desarrollo.md` ampliando informes con vistas agregadas por ejes operativos clave y permisos por tipo.
 - Cambio aplicado: creados endpoints `GET /api/privado/informes/desglose-producto` y `GET /api/privado/informes/desglose-categoria` protegidos por `puedeVerAnalitica` y endpoint `GET /api/privado/informes/desglose-turno` protegido por `puedeVerInformes`; ampliado cliente API con tipos y funciones para los tres desgloses; extendida UI `/informes` con selector de rango temporal, tarjetas de ventas por producto/categoria/turno y recarga unificada junto con auditoria filtrable.
@@ -571,3 +651,35 @@ Reglas de sintonia:
 - Validacion: `docker` no disponible en PATH (`The term 'docker' is not recognized`), por lo que no se puede levantar Postgres local desde este entorno; `corepack pnpm --filter @el-jardin/infra db:migrate` sigue fallando con `Schema engine error`; en intento previo `RUN_DB_TESTS=1` falla por autenticacion DB invalida.
 - Estado del plan: gate DB de Fase 13 pendiente exclusivamente por infraestructura/credenciales del entorno, no por logica de aplicacion.
 - Riesgos / pendientes: instalar/habilitar Docker Desktop (o proveer PostgreSQL accesible con credenciales validas), ejecutar `corepack pnpm db:migrate`, `corepack pnpm db:seed` y finalmente `RUN_DB_TESTS=1 corepack pnpm test:db`.
+
+### [2026-04-29 20:17] Reintentar cierre DB - corregidos errores de codigo, bloquea daemon Docker/DB no accesible
+- Objetivo: continuar Fase 13 cerrando gate DB real con `RUN_DB_TESTS=1`.
+- Cambio aplicado: corregido seed ESM/CJS en `packages/infra/prisma/seed.mjs`; generado Prisma Client (`db:generate`) y creado enlace de compatibilidad `.prisma` para resolver carga de `@prisma/client` en este entorno Windows+pnpm; reintentos de `db:seed` y `test:db` confirman que ya no fallan por modulo Prisma faltante, sino por conexion DB.
+- Archivos: `packages/infra/prisma/seed.mjs`, `AGENTS.md`.
+- Validacion: `docker info` muestra cliente disponible pero servidor no accesible (`failed to connect to ... dockerDesktopLinuxEngine`); `db:seed` y `RUN_DB_TESTS=1 test:db` fallan con `Can't reach database server at localhost:5432`.
+- Estado del plan: bloqueado solo por infraestructura (daemon Docker/Postgres), no por codigo de app ni tests.
+- Riesgos / pendientes: abrir Docker Desktop hasta que `docker info` muestre `Server`; luego ejecutar `corepack pnpm db:up`, `corepack pnpm db:migrate`, `corepack pnpm db:seed` y `RUN_DB_TESTS=1 corepack pnpm test:db`.
+
+### [2026-04-29 20:38] Cerrar gate DB real de Fase 13 - integracion informes validada
+- Objetivo: completar evidencia real de integracion DB para informes privados segun `plan-desarrollo.md`.
+- Cambio aplicado: tras estabilizar Docker/Postgres, ejecutadas migraciones y seed contra `postgresql://tpv:tpv@localhost:5432/tpv` con `DATABASE_URL` explicita en shell para evitar ambiguedad de entorno; ejecutada suite `test:db` con `RUN_DB_TESTS=1` en `apps/tpv`.
+- Archivos: `AGENTS.md`.
+- Validacion: `corepack pnpm --filter @el-jardin/infra db:migrate` OK (`Already in sync`); `corepack pnpm --filter @el-jardin/infra db:seed` OK; `corepack pnpm --filter @el-jardin/tpv test:db` con `RUN_DB_TESTS=1` OK (1 archivo, 3 tests verdes).
+- Estado del plan: gate de integracion DB de Fase 13 cerrado en entorno real.
+- Riesgos / pendientes: mantener consistencia de variables de entorno en terminales Windows (recomendado exportar `DATABASE_URL` antes de comandos DB/test para evitar desalineaciones por contexto de shell).
+
+### [2026-04-29 20:48] Avanzar Fase 14 - prueba DB de flujo critico operativo end-to-end
+- Objetivo: endurecer el gate final de MVP con evidencia automatizada del flujo completo (login -> sala/pedido -> cocina/barra -> cobro -> cierre caja -> informe).
+- Cambio aplicado: creada suite `apps/tpv/app/api/privado/flujo-critico-db.test.ts` con ejecucion real contra DB (`RUN_DB_TESTS=1` + `DATABASE_URL`) que valida: login por email/password, apertura de caja, apertura de pedido en mesa, anadir linea, envio de pedido, transiciones `en_preparacion -> lista -> servida`, cobro en efectivo, cierre de caja e informe resumen final; incorporada preparacion de stock (`StockFisico`) para cubrir invariantes de reserva/consumo; mejorada limpieza de fixtures para eliminar entidades dependientes de stock/movimientos; ademas se corrigio compatibilidad ESM/CJS del seed (`packages/infra/prisma/seed.mjs`) y tipos Node en infra (`packages/infra/tsconfig.json`, `packages/infra/package.json`) para mantener gates tecnicos verdes.
+- Archivos: `apps/tpv/app/api/privado/flujo-critico-db.test.ts`, `packages/infra/prisma/seed.mjs`, `packages/infra/tsconfig.json`, `packages/infra/package.json`, `AGENTS.md`.
+- Validacion: `corepack pnpm -r format` OK; `corepack pnpm -r type-check` OK (tras limpieza de `.next` por falso negativo conocido de `validator.ts`); `corepack pnpm -r build` OK; `DATABASE_URL=postgresql://tpv:tpv@localhost:5432/tpv` + `RUN_DB_TESTS=1` -> `corepack pnpm --filter @el-jardin/tpv test` OK (11 suites, 24 tests verdes) incluyendo `integracion-db.test.ts` y `flujo-critico-db.test.ts`.
+- Estado del plan: Fase 14 reforzada con evidencia automatizada del flujo critico operativo en entorno real de DB.
+- Riesgos / pendientes: mantener Docker daemon y variables de entorno consistentes para repetir pruebas DB; pendiente deseable de hardening: incluir flujo equivalente para cobro mixto/dividido y escenario de reconexion/realtime en test de mayor nivel.
+
+### [2026-04-29 21:14] Continuar Fase 14 - hardening economico con flujo DB mixto/dividido
+- Objetivo: extender el hardening del flujo critico MVP con cobertura de cobro mixto/dividido y cierre de caja descuadrado en entorno real DB.
+- Cambio aplicado: ampliada `apps/tpv/app/api/privado/flujo-critico-db.test.ts` con segundo escenario E2E (`metodo=mixto` + `divisiones` y cierre con saldo no coincidente verificando estado `descuadrada`); reforzada limpieza de fixtures para multiples pedidos/lineas/cajas y dependencias de stock; ajustada `integracion-db.test.ts` para usar caja fixture cerrada y evitar interferencia entre suites DB concurrentes.
+- Archivos: `apps/tpv/app/api/privado/flujo-critico-db.test.ts`, `apps/tpv/app/api/privado/informes/integracion-db.test.ts`, `AGENTS.md`.
+- Validacion: `DATABASE_URL=postgresql://tpv:tpv@localhost:5432/tpv` + `RUN_DB_TESTS=1` -> `corepack pnpm --filter @el-jardin/tpv test` OK (11 suites, 25 tests verdes, incluyendo `integracion-db` y `flujo-critico-db`); `corepack pnpm -r type-check` OK.
+- Estado del plan: Fase 14 reforzada en capa economica (cobro/caja/informe) con pruebas reales adicionales.
+- Riesgos / pendientes: queda pendiente de hardening final cubrir escenario realtime/reconexion dentro de flujo operativo completo para cerrar totalmente el gate de eventos en servicio.

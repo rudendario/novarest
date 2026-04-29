@@ -13,6 +13,12 @@ export async function POST(request: NextRequest) {
   }
 
   const respuesta = NextResponse.json({ ok: true });
-  respuesta.cookies.set("tpv_sesion", "", { path: "/", expires: new Date(0) });
+  respuesta.cookies.set("tpv_sesion", "", {
+    path: "/",
+    expires: new Date(0),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
   return respuesta;
 }

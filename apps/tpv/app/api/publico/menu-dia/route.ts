@@ -2,6 +2,7 @@ import { esquemaMenuDiaPublico } from "@el-jardin/contratos";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { crearRequestId, registrarErrorApi } from "@/src/api/logging";
 import { obtenerMenuDiaPublico } from "@/src/api/publico/consultas-publicas";
 import { validarRateLimit } from "@/src/api/publico/rate-limit";
 import { responderErrorApi, responderOk } from "@/src/api/publico/respuestas";
@@ -32,7 +33,16 @@ export async function GET(request: NextRequest) {
     const payload = esquemaMenuDiaPublico.parse(menu);
 
     return responderOk(payload, 120);
-  } catch {
-    return responderErrorApi(500, "error_interno", "No se pudo consultar menu del dia");
+  } catch (error) {
+    const requestId = crearRequestId();
+    registrarErrorApi({
+      requestId,
+      scope: "api_publica_menu_dia",
+      ruta: "/api/publico/menu-dia",
+      metodo: "GET",
+      detalle: "fallo_consulta_menu_dia_publico",
+      error,
+    });
+    return responderErrorApi(500, "error_interno", "No se pudo consultar menu del dia", requestId);
   }
 }

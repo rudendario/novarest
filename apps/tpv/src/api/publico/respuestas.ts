@@ -9,12 +9,16 @@ export function responderErrorApi(
   requestId?: string,
 ) {
   const error: ErrorApi = { codigo, mensaje, requestId };
+  const headers: Record<string, string> = {
+    "Cache-Control": "no-store",
+  };
+  if (requestId) {
+    headers["X-Request-Id"] = requestId;
+  }
 
   return NextResponse.json(error, {
     status: estado,
-    headers: {
-      "Cache-Control": "no-store",
-    },
+    headers,
   });
 }
 

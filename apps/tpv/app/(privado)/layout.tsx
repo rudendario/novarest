@@ -27,7 +27,7 @@ export default async function LayoutPrivado({ children }: { children: React.Reac
             <p className="text-sm text-slate-500">Sesion activa</p>
             <p className="text-sm font-semibold text-slate-900">Rol: {sesion.rolNombre}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <nav aria-label="Navegacion privada principal" className="flex items-center gap-2">
             <Link href="/inicio">
               <Boton variante="secundario">Inicio privado</Boton>
             </Link>
@@ -62,10 +62,12 @@ export default async function LayoutPrivado({ children }: { children: React.Reac
               <Boton variante="secundario">Informes</Boton>
             </Link>
             <BotonLogout />
-          </div>
+          </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8" id="contenido-principal">
+        {children}
+      </main>
     </div>
   );
 }

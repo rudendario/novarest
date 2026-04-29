@@ -98,9 +98,11 @@ describe.skipIf(!(tieneDatabaseUrl && ejecucionDbHabilitada))(
 
       const caja = await clientePrisma.caja.create({
         data: {
-          estado: "abierta",
+          estado: "cerrada",
           abiertaEn: desde,
+          cerradaEn: hasta,
           saldoInicial: 0,
+          saldoFinal: 0,
         },
       });
       cajaId = caja.id;

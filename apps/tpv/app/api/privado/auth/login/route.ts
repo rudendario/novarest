@@ -3,12 +3,12 @@ import { z } from "zod";
 
 import { clientePrisma } from "@el-jardin/infra";
 
+import { crearRequestId, registrarErrorApi } from "@/src/api/logging";
 import {
   crearSesion,
-  hashSecreto,
   obtenerIpRequest,
   validarRateLimitAuth,
-  verificarSecreto,
+  verificarSecretoConMigracion,
 } from "@/src/api/privado/auth/servicio-auth";
 import { responderErrorApi } from "@/src/api/publico/respuestas";
 
@@ -41,22 +41,16 @@ export async function POST(request: NextRequest) {
       return responderErrorApi(401, "no_autenticado", "Credenciales invalidas");
     }
 
-    if (!usuario.hashPassword.startsWith("$argon2")) {
-      const nuevoHash = await hashSecreto(entrada.password);
-      await clientePrisma.usuario.update({
-        where: { id: usuario.id },
-        data: { hashPassword: nuevoHash },
-      });
-    }
-
-    const usuarioActualizado = await clientePrisma.usuario.findUnique({
-      where: { id: usuario.id },
-    });
-    if (!usuarioActualizado) {
-      return responderErrorApi(401, "no_autenticado", "Credenciales invalidas");
-    }
-
-    const ok = await verificarSecreto(usuarioActualizado.hashPassword, entrada.password);
+    const ok = await verificarSecretoConMigracion(
+      usuario.hashPassword,
+      entrada.password,
+      async (nuevoHash) => {
+        await clientePrisma.usuario.update({
+          where: { id: usuario.id },
+          data: { hashPassword: nuevoHash },
+        });
+      },
+    );
     if (!ok) {
       await clientePrisma.registroAuditoria.create({
         data: {
@@ -117,7 +111,16 @@ export async function POST(request: NextRequest) {
     });
 
     return respuesta;
-  } catch {
-    return responderErrorApi(400, "solicitud_invalida", "Datos invalidos para login");
+  } catch (error) {
+    const requestId = crearRequestId();
+    registrarErrorApi({
+      requestId,
+      scope: "api_privada_auth_login",
+      ruta: "/api/privado/auth/login",
+      metodo: "POST",
+      detalle: "fallo_proceso_login",
+      error,
+    });
+    return responderErrorApi(400, "solicitud_invalida", "Datos invalidos para login", requestId);
   }
 }

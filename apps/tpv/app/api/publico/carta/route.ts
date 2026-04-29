@@ -2,6 +2,7 @@ import { esquemaCartaPublica } from "@el-jardin/contratos";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { crearRequestId, registrarErrorApi } from "@/src/api/logging";
 import {
   obtenerCategoriasPublicas,
   obtenerNegocioPublico,
@@ -44,7 +45,16 @@ export async function GET(request: NextRequest) {
     });
 
     return responderOk(payload, 180);
-  } catch {
-    return responderErrorApi(500, "error_interno", "No se pudo consultar carta publica");
+  } catch (error) {
+    const requestId = crearRequestId();
+    registrarErrorApi({
+      requestId,
+      scope: "api_publica_carta",
+      ruta: "/api/publico/carta",
+      metodo: "GET",
+      detalle: "fallo_consulta_carta_publica",
+      error,
+    });
+    return responderErrorApi(500, "error_interno", "No se pudo consultar carta publica", requestId);
   }
 }

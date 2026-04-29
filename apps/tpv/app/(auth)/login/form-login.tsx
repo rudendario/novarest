@@ -12,9 +12,9 @@ type Modo = "password" | "pin";
 export function FormLogin() {
   const router = useRouter();
   const [modo, setModo] = useState<Modo>("password");
-  const [email, setEmail] = useState("admin@eljardin.local");
-  const [password, setPassword] = useState("admin1234");
-  const [pin, setPin] = useState("1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [dispositivoToken, setDispositivoToken] = useState("terminal-admin-1");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,17 +47,25 @@ export function FormLogin() {
 
   return (
     <Tarjeta className="mx-auto w-full max-w-md p-6">
-      <div className="mb-4 flex gap-2 rounded-xl bg-slate-100 p-1 text-sm">
+      <div
+        aria-label="Selector de modo de acceso"
+        className="mb-4 flex gap-2 rounded-xl bg-slate-100 p-1 text-sm"
+        role="tablist"
+      >
         <button
+          aria-selected={modo === "password"}
           className={`flex-1 rounded-lg px-3 py-2 ${modo === "password" ? "bg-white font-medium" : "text-slate-600"}`}
           onClick={() => setModo("password")}
+          role="tab"
           type="button"
         >
           Email
         </button>
         <button
+          aria-selected={modo === "pin"}
           className={`flex-1 rounded-lg px-3 py-2 ${modo === "pin" ? "bg-white font-medium" : "text-slate-600"}`}
           onClick={() => setModo("pin")}
+          role="tab"
           type="button"
         >
           PIN
@@ -101,7 +109,11 @@ export function FormLogin() {
           </Campo>
         )}
 
-        {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+        {error ? (
+          <p aria-live="assertive" className="text-sm text-rose-700" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <Boton disabled={cargando} type="submit">
           {cargando ? "Entrando..." : "Iniciar sesion"}

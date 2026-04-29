@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "type-check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:db": "vitest run app/api/privado/informes/integracion-db.test.ts",
+    "test:db": "vitest run app/api/privado/informes/integracion-db.test.ts app/api/privado/flujo-critico-db.test.ts",
     "format": "biome check . --write"
   },
   "dependencies": {

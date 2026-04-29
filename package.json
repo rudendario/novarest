@@ -2,7 +2,7 @@
   "name": "@el-jardin/raiz",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@9.12.3",
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -13,10 +13,15 @@
     "type-check": "pnpm -r type-check",
     "test": "pnpm -r test",
     "test:db": "corepack pnpm --filter @el-jardin/tpv test:db",
+    "gate:full": "pnpm -r format && pnpm -r lint && pnpm -r type-check && pnpm -r test && pnpm test:db && pnpm -r build",
     "format": "pnpm -r format",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @el-jardin/infra db:migrate",
+    "db:migrate:deploy": "pnpm --filter @el-jardin/infra db:migrate:deploy",
+    "db:migrate:status": "pnpm --filter @el-jardin/infra db:migrate:status",
+    "db:backup": "powershell -ExecutionPolicy Bypass -File scripts/db-backup.ps1",
+    "db:restore": "powershell -ExecutionPolicy Bypass -File scripts/db-restore.ps1",
     "db:seed": "pnpm --filter @el-jardin/infra db:seed"
   }
 }

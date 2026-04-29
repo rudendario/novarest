@@ -2,6 +2,7 @@ import { esquemaNegocioPublico } from "@el-jardin/contratos";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { crearRequestId, registrarErrorApi } from "@/src/api/logging";
 import { obtenerNegocioPublico } from "@/src/api/publico/consultas-publicas";
 import { validarRateLimit } from "@/src/api/publico/rate-limit";
 import { responderErrorApi, responderOk } from "@/src/api/publico/respuestas";
@@ -32,7 +33,21 @@ export async function GET(request: NextRequest) {
     const payload = esquemaNegocioPublico.parse(negocio);
 
     return responderOk(payload, 300);
-  } catch {
-    return responderErrorApi(500, "error_interno", "No se pudo consultar negocio publico");
+  } catch (error) {
+    const requestId = crearRequestId();
+    registrarErrorApi({
+      requestId,
+      scope: "api_publica_negocio",
+      ruta: "/api/publico/negocio",
+      metodo: "GET",
+      detalle: "fallo_consulta_negocio_publico",
+      error,
+    });
+    return responderErrorApi(
+      500,
+      "error_interno",
+      "No se pudo consultar negocio publico",
+      requestId,
+    );
   }
 }

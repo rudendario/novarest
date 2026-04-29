@@ -7,6 +7,7 @@ Documentos rectores:
 - `aplicacion-requisitos.md` — PRD y arquitectura objetivo.
 - `plan-desarrollo.md` — plan operativo por fases.
 - `AGENTS.md` — guia operativa, decisiones cerradas y bitacora.
+- `docs/checklist-despliegue-mvp.md` — checklist operativo de despliegue (Fase 14).
 - `CLAUDE.md` — contexto adicional para agentes IA.
 
 ## Stack confirmado (2026-04-28)
@@ -31,10 +32,15 @@ Documentos rectores:
 - `pnpm format` — Biome format.
 - `pnpm type-check` — TypeScript sin emitir.
 - `pnpm test` — Vitest.
-- `pnpm test:db` — pruebas de integracion DB de `apps/tpv` (requiere `RUN_DB_TESTS=1` y `DATABASE_URL` valida).
+- `pnpm test:db` — pruebas de integracion DB de `apps/tpv` (informes + flujo critico; requiere `RUN_DB_TESTS=1` y `DATABASE_URL` valida).
+- `pnpm gate:full` — gate completo: format + lint + type-check + test + test:db + build.
 - `pnpm db:up` — levantar Postgres en Docker.
 - `pnpm db:down` — apagar Docker.
 - `pnpm db:migrate` — Prisma migrate dev.
+- `pnpm db:migrate:deploy` — aplicar migraciones pendientes (modo despliegue).
+- `pnpm db:migrate:status` — estado de migraciones.
+- `pnpm db:backup` — crear backup SQL en `backups/`.
+- `pnpm db:restore` — restaurar backup SQL (requiere `-InputFile`).
 - `pnpm db:seed` — seed de desarrollo.
 
 ## Requisitos previos
@@ -54,7 +60,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-## Ejecutar pruebas de integracion DB (informes)
+## Ejecutar pruebas de integracion DB
 
 Estas pruebas estan preparadas para no romper entornos sin Postgres activo.
 
@@ -66,6 +72,27 @@ pnpm test:db
 - Bash:
 ```bash
 RUN_DB_TESTS=1 pnpm test:db
+```
+
+## Backups y migraciones (operacion)
+
+- Ver estado de migraciones:
+```bash
+pnpm db:migrate:status
+```
+- Aplicar migraciones en despliegue:
+```bash
+pnpm db:migrate:deploy
+```
+- Crear backup (PowerShell):
+```powershell
+pnpm db:backup
+# opcional ruta custom:
+powershell -ExecutionPolicy Bypass -File scripts/db-backup.ps1 -OutputFile backups/tpv_manual.sql
+```
+- Restaurar backup (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/db-restore.ps1 -InputFile backups/tpv_manual.sql
 ```
 
 ## Restricciones v1 (no negociables)
