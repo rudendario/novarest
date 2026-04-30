@@ -1,747 +1,477 @@
-# Plan de desarrollo - TPV El Jardin
+# Plan de desarrollo - Correccion de diferencias
 
-Fecha: 2026-04-28 16:46.
-Estado: plan operativo inicial para convertir `aplicacion-requisitos.md` en proyecto real.
+Fecha: 2026-04-30.
+Estado: plan limpio para corregir diferencias entre `aplicacion-requisitos.md` y la aplicacion auditada.
 
 ## 1. Objetivo
 
-Convertir el PRD en una aplicacion real, construida desde cero, para un solo negocio de restauracion.
+Arreglar las diferencias encontradas en la auditoria y llevar la aplicacion al PRD vigente:
 
-Principios obligatorios:
+- Un solo negocio.
+- Sin SaaS, multiempresa, multiestablecimiento ni tenancy preventiva.
+- Monolito modular real.
+- Contratos publicos y privados estables.
+- Flujo critico de TPV consistente: sala, pedido, cocina/barra, cobro, caja, stock e informes.
+- API publica segura y solo lectura.
+- Auditoria y permisos aplicados en mutaciones criticas.
+- Tests que demuestren comportamiento, no solo scripts verdes.
 
-- Monolito modular.
-- Un solo negocio en v1.
-- Sin SaaS, multiempresa, multiestablecimiento, tenancy preventiva ni microservicios.
-- Codigo propio en espanol.
-- Dominio puro, aplicacion orquestadora, infraestructura como adaptador.
-- UI reutilizable.
-- API publica segura para carta, platos, categorias, menu y datos visibles del negocio.
-- Tests y gates desde la primera fase.
+Este documento no describe lo ya realizado. Solo define que hay que corregir, en que orden y como se cierra cada bloque.
 
-## 2. Orden de trabajo recomendado
+## 2. Reglas de trabajo
 
-1. Fundacion tecnica.
-2. Modelo de datos base.
-3. Contratos compartidos.
-4. Carta, menu y API publica.
-5. UI publica y sistema UI base.
-6. Auth, usuarios, roles, permisos y dispositivos.
-7. Sala, mesas, pedidos, cocina, barra y realtime.
-8. Stock operativo.
-9. Caja, cobros y cierre.
-10. Reservas, clientes e impresoras.
-11. Compras, proveedores, escandallos, auditoria e informes.
-12. Hardening, QA, seguridad y preparacion de entrega.
+- No anadir funcionalidades nuevas mientras haya diferencias criticas abiertas.
+- No reabrir decisiones de producto ya cerradas salvo cambio explicito del PRD.
+- No introducir `Empresa`, `Establecimiento`, `empresaId` ni `establecimientoId`.
+- No declarar el MVP listo hasta superar el gate final de este plan.
+- Toda correccion debe tener prueba automatizada o evidencia manual reproducible.
+- Los handlers HTTP deben quedar finos: validar entrada, llamar caso de uso y responder.
+- Las reglas de negocio deben vivir en `packages/dominio` o `packages/aplicacion`.
+- El acceso a Prisma debe quedar encapsulado en `packages/infra`.
+- La API publica nunca debe exponer costes, stock interno, caja, auditoria, proveedores, usuarios ni datos personales.
+
+## 3. Diferencias a cerrar
+
+| ID | Area | Diferencia | Resultado esperado |
+| --- | --- | --- | --- |
+| D1 | Contratos | DTO publico, errores, estados y eventos no coinciden del todo con el PRD. | `packages/contratos`, Prisma, API y UI comparten la misma verdad. |
+| D2 | Modularidad | Hay logica de negocio en rutas y servicios de `apps/tpv`. | Dominio puro, aplicacion orquestadora, infra como adaptador. |
+| D3 | Cobro/caja/stock | Cobro, cierre de pedido, caja y stock no son una unidad atomica. | Cobrar pedido es transaccional, auditable y reconciliable. |
+| D4 | Cuenta dividida | Las divisiones pueden normalizarse contra el total en vez del importe parcial. | Cada division conserva su importe real y la suma debe cuadrar. |
+| D5 | Realtime | Servidor SSE y cliente no usan la misma convencion de entrega. | Eventos recibidos, deduplicados y recuperables tras reconexion. |
+| D6 | Seguridad/admin | Faltan piezas de administracion, politica de dispositivos, secretos y rate-limit persistente. | Operacion privada administrable y segura. |
+| D7 | Auditoria | No todas las mutaciones criticas registran auditoria uniforme. | Trazabilidad completa con `requestId`, usuario, accion, entidad y motivo cuando aplique. |
+| D8 | QA/UX/web | Hay tests placeholder, prompts/alerts operativos, permisos visuales incompletos y web publica sin remate. | Evidencia real de calidad y experiencia operativa cerrada. |
+
+## 4. Orden de correccion
+
+El orden es deliberado:
+
+1. Contratos y estados.
+2. Modularidad base.
+3. Flujo atomico de cobro, caja y stock.
+4. Realtime.
+5. Seguridad, administracion y auditoria.
+6. UX, web publica y accesibilidad.
+7. QA final y release.
 
 Razon:
 
-- Carta/API publica da valor temprano y prueba contratos, DB, UI y seguridad sin bloquear TPV completo.
-- Auth y permisos entran antes de operacion privada real.
-- Sala/pedidos/realtime se implementan antes de caja porque caja depende del pedido cerrado.
-- Stock se conecta antes de cobro definitivo para validar reserva/consolidacion.
+- Primero se fija el lenguaje compartido.
+- Despues se mueven reglas a las capas correctas.
+- Luego se corrige el flujo economico mas critico.
+- Realtime se estabiliza sobre contratos ya cerrados.
+- Seguridad, auditoria y administracion cierran la operacion privada.
+- UX y web rematan la entrega visible.
+- QA final valida que no se ha construido sobre una base falsa.
 
-## 3. Gates globales
-
-Ninguna fase se considera cerrada si falla alguno:
-
-- `lint` limpio.
-- `type-check` limpio.
-- tests de la fase verdes.
-- build verde cuando exista app.
-- sin `any` sin justificacion.
-- sin `fetch` directo en componentes.
-- sin reglas de negocio en UI ni handlers HTTP.
-- sin DTOs internos como respuesta publica.
-- sin estados, permisos o eventos como strings magicos dispersos.
-- sin referencias de tenancy v1 (`Empresa`, `Establecimiento`, `empresaId`, `establecimientoId`) salvo prohibicion documentada.
-
-## 4. Fase 0 - Preparacion del repositorio
+## 5. Fase 1 - Contratos, estados y errores
 
 Objetivo:
 
-- Preparar el repo para empezar implementacion real sin arrastrar deuda documental.
+- Eliminar divergencias entre PRD, Prisma, Zod, DTOs, eventos, API y UI.
+
+Decisiones:
+
+- El contrato publico de plato usa `precio: string`, no `precioCentimos`.
+- `ErrorApi` usa esta forma:
+
+```ts
+type ErrorApi = {
+  codigo: string;
+  mensaje: string;
+  detalles?: unknown;
+  requestId: string;
+};
+```
+
+- Los codigos de error validos son:
+  - `validacion`
+  - `sin_permiso`
+  - `no_autenticado`
+  - `no_encontrado`
+  - `conflicto`
+  - `stock_insuficiente`
+  - `no_publicado`
+  - `limite_peticion`
+  - `error_interno`
+- Estados de reserva:
+  - `solicitud`
+  - `confirmada`
+  - `en_riesgo`
+  - `no_presentado`
+  - `completada`
+  - `cancelada`
+- Estados de lista de espera:
+  - `esperando`
+  - `avisado`
+  - `atendido`
+  - `cancelado`
+  - `sin_respuesta`
+- Estados de pedido de compra:
+  - `borrador`
+  - `enviado`
+  - `parcial`
+  - `recibido`
+  - `cancelado`
+- Eventos realtime usan el sobre:
+
+```ts
+type EventoRealtime<T> = {
+  version: 1;
+  nombre: string;
+  ocurridoEn: string;
+  requestId: string;
+  datos: T;
+};
+```
 
 Entregables:
 
-- `README.md` actualizado con objetivo del proyecto y comandos esperados.
-- `plan-desarrollo.md` como guia operativa.
-- `.codex/settings.json` y hooks documentales alineados.
-- Decisiones pendientes visibles: auth, ORM final, almacenamiento de imagenes, cache publica.
+- `packages/contratos` como fuente de verdad de DTOs, schemas, errores y eventos.
+- Migracion o adaptador para estados persistidos divergentes.
+- API publica ajustada a contratos publicos.
+- Cliente API ajustado a los nuevos contratos.
+- Tests contractuales para API publica, errores y eventos.
 
-Tareas:
+Gate de cierre:
 
-- Revisar estado git y separar cambios documentales antes de scaffold.
-- Confirmar stack base: Next.js, TypeScript, PostgreSQL, Prisma u ORM equivalente, Socket.IO o alternativa.
-- Definir convencion de scripts: `lint`, `type-check`, `test`, `build`, `dev`.
-- Definir version minima de Node y gestor de paquetes.
+- No quedan strings magicos de estados, permisos, errores o eventos fuera de contratos.
+- `corepack pnpm --filter @el-jardin/contratos test` tiene tests reales.
+- Endpoints publicos devuelven `precio: string`.
+- Todos los errores API incluyen `requestId`.
 
-Agentes:
-
-- Responsable: `tech-lead`.
-- Apoyo: `security-auditor` para secretos/config inicial.
-
-Gate:
-
-- Documentacion no contradice PRD.
-- No quedan hooks obsoletos activos.
-
-## 5. Fase 1 - Scaffold monolitico modular
+## 6. Fase 2 - Modularidad real
 
 Objetivo:
 
-- Crear estructura inicial de app y paquetes compartidos.
+- Convertir la estructura de carpetas en limites reales de arquitectura.
+
+Responsabilidades finales:
+
+| Capa | Responsabilidad |
+| --- | --- |
+| `packages/dominio` | Reglas puras, invariantes, transiciones de estado, validacion de importes y stock. |
+| `packages/aplicacion` | Casos de uso, permisos, transacciones, auditoria de aplicacion y eventos resultantes. |
+| `packages/contratos` | DTOs, schemas, errores, permisos y eventos compartidos. |
+| `packages/infra` | Prisma, repositorios, logger, cache, rate-limit, realtime e impresoras. |
+| `apps/tpv` | UI, rutas HTTP, composicion de dependencias y adaptadores de entrada. |
+
+Casos de uso minimos a extraer:
+
+- `cobrarPedido`
+- `abrirCaja`
+- `cerrarCaja`
+- `anadirLineaPedido`
+- `enviarPedidoAProduccion`
+- `actualizarEstadoLinea`
+- `cancelarLineaPedido`
+- `ajustarStock`
+- `recepcionarPedidoCompra`
+- `publicarCarta`
+- `publicarMenuDia`
+- `registrarAuditoria`
 
 Entregables:
 
-- `apps/tpv`.
-- `packages/dominio`.
-- `packages/aplicacion`.
-- `packages/contratos`.
-- `packages/infra`.
-- `packages/ui`.
-- Configuracion TypeScript, lint, tests y build.
+- Puertos de repositorio definidos en `packages/aplicacion`.
+- Implementaciones Prisma en `packages/infra`.
+- Handlers HTTP sin reglas de negocio.
+- Tests de dominio para invariantes.
+- Tests de aplicacion para casos de uso criticos.
 
-Tareas:
+Gate de cierre:
 
-- Crear workspace monorepo.
-- Crear app Next.js en `apps/tpv`.
-- Crear paquetes internos con exports controlados.
-- Configurar alias/imports.
-- Crear estructura de rutas:
-  - `app/(privado)`;
-  - `app/(publico)`;
-  - `app/api/privado`;
-  - `app/api/publico`.
-- Crear cliente API tipado inicial.
-- Crear logger base.
-- Crear formato normalizado de `ErrorApi`.
+- `packages/dominio` no importa Next, Prisma ni infra.
+- `packages/aplicacion` no importa rutas de Next.
+- `apps/tpv/app/api/**/route.ts` no contiene calculos de negocio.
+- Los scripts de test de paquetes criticos dejan de ser placeholders.
 
-Agentes:
-
-- Responsable: `tech-lead`.
-- Implementacion: `backend-developer`, `frontend-developer`.
-
-Gate:
-
-- Build inicial verde.
-- Lint y type-check verdes.
-- Tests base ejecutan.
-- `packages/dominio` no importa frameworks.
-
-## 6. Fase 2 - Modelo de datos base
+## 7. Fase 3 - Cobro, caja y stock atomicos
 
 Objetivo:
 
-- Definir persistencia minima para negocio, usuarios, carta/menu y auditoria.
+- Hacer indivisible el flujo: pedido -> cobro -> caja -> stock -> auditoria -> eventos.
+
+Reglas:
+
+- Cobrar pedido se ejecuta en una unica transaccion DB.
+- El pedido solo se cierra si pagos, caja, stock y auditoria quedan persistidos.
+- Stock reservado se consolida dentro de la misma transaccion.
+- Si algo falla, no debe quedar pedido cerrado con caja incompleta ni stock consolidado sin cobro.
+- Cuenta dividida exige:
+  - minimo 2 divisiones;
+  - maximo 20 divisiones;
+  - importes positivos;
+  - suma exacta del total;
+  - cada division conserva su importe parcial;
+  - metodo de pago valido por division.
 
 Entregables:
 
-- Schema inicial.
-- Migracion inicial.
-- Seed de desarrollo.
-- Repositorios base.
-- Indices y constraints iniciales.
+- Caso de uso `cobrarPedido` transaccional en `packages/aplicacion`.
+- Reglas de validacion de pagos en `packages/dominio`.
+- Repositorios transaccionales en `packages/infra`.
+- Auditoria de cobro, cierre de pedido, movimientos de caja y stock.
+- Eventos emitidos solo despues de commit correcto.
+- Tarea de reconciliacion para detectar descuadres:
+  - pedido cerrado sin pago completo;
+  - pago registrado sin pedido cerrado;
+  - stock consolidado sin cobro;
+  - caja con cobros no vinculados.
 
-Entidades iniciales:
+Gate de cierre:
 
-- `ConfiguracionNegocio`.
-- `Usuario`.
-- `RolUsuario`.
-- `PermisoUsuario`.
-- `Dispositivo`.
-- `Sesion`.
-- `CategoriaProducto`.
-- `Producto`.
-- `Alergeno`.
-- `ImagenProducto`.
-- `MenuDia`.
-- `CursoMenuDia`.
-- `PlatoMenuDia`.
-- `RegistroAuditoria`.
+- Test DB de cobro normal.
+- Test DB de cobro mixto.
+- Test DB de cuenta dividida.
+- Test DB de fallo intermedio con rollback.
+- Test de invariantes de stock.
+- No hay ruta HTTP que cierre pedido, caja o stock por separado en el flujo de cobro.
 
-Tareas:
-
-- Definir slugs unicos para categorias y productos.
-- Separar estado interno y estado publico de productos.
-- Modelar alergenos N:M.
-- Modelar menu del dia por fecha, cursos y platos.
-- Definir auditoria minima.
-- Definir baja logica donde aplique.
-- Definir `onDelete` explicito.
-
-Agentes:
-
-- Responsable: `database-designer`.
-- Apoyo: `backend-developer`, `security-auditor`.
-
-Gate:
-
-- Migracion aplica en limpio.
-- Seed crea carta/menu de ejemplo.
-- No hay `empresaId` ni `establecimientoId`.
-- API publica puede proyectar datos sin campos internos.
-
-## 7. Fase 3 - Contratos y dominio base
+## 8. Fase 4 - Realtime fiable
 
 Objetivo:
 
-- Crear lenguaje compartido de la aplicacion antes de multiplicar pantallas y endpoints.
+- Garantizar que sala, cocina, barra y caja reciben cambios en vivo y se recuperan tras reconexion.
+
+Decision:
+
+- SSE usa `message` como evento de transporte.
+- El nombre de evento vive dentro de `EventoRealtime.nombre`.
+- El payload vive dentro de `EventoRealtime.datos`.
+- No se usan eventos SSE nombrados salvo que el cliente registre listeners explicitos para todos ellos.
 
 Entregables:
 
-- Constantes tipadas de estados, permisos, eventos y errores.
-- Schemas de entrada/salida.
-- DTOs publicos y privados separados.
-- `ResultadoConEventos<T>`.
-- Value objects iniciales.
+- Servidor SSE alineado con el cliente.
+- Cliente realtime con:
+  - deduplicacion por id;
+  - replay por `desdeId`;
+  - reconexion controlada;
+  - recuperacion de estado por API cuando sea necesario.
+- Backlog realtime con politica de retencion documentada.
+- Canales autorizados por usuario, rol, permisos y dispositivo.
+- Eventos de pedido, linea, mesa, caja, stock, reserva, carta y menu usando contratos compartidos.
 
-Tareas:
+Gate de cierre:
 
-- Definir `ErrorApi`.
-- Definir permisos base del PRD.
-- Definir estados de producto, menu, pedido, linea, caja, reserva y lista de espera.
-- Definir eventos realtime iniciales.
-- Definir contratos publicos:
-  - negocio publico;
-  - categoria publica;
-  - plato publico;
-  - carta publica;
-  - menu del dia publico.
+- Test unitario de cliente realtime.
+- Test de stream SSE.
+- Test de replay tras reconexion.
+- Smoke manual:
+  1. abrir mesa;
+  2. anadir linea;
+  3. enviar a cocina/barra;
+  4. cambiar estado;
+  5. cobrar;
+  6. ver actualizacion sin recargar.
 
-Agentes:
-
-- Responsable: `backend-developer`.
-- Revision: `tech-lead`, `security-auditor`.
-
-Gate:
-
-- API publica no reutiliza DTOs internos.
-- Estados/permisos/eventos no son strings dispersos.
-- Tests de schemas principales.
-
-## 8. Fase 4 - Carta, menu y API publica
+## 9. Fase 5 - Seguridad, administracion y auditoria
 
 Objetivo:
 
-- Entregar primer valor real: carta y menu administrables y consumibles por la web.
+- Cerrar la operacion privada y la trazabilidad.
 
-Entregables:
+Entregables de seguridad:
 
-- CRUD privado de categorias.
-- CRUD privado de productos/platos.
-- Gestion de alergenos e imagenes.
-- Gestion de menu del dia.
-- Publicar/despublicar carta y menu.
-- Endpoints:
-  - `GET /api/publico/negocio`;
-  - `GET /api/publico/carta`;
-  - `GET /api/publico/categorias`;
-  - `GET /api/publico/platos`;
-  - `GET /api/publico/platos/:slug`;
-  - `GET /api/publico/menu-dia`.
+- Validacion de secretos al arrancar.
+- Politica de dispositivos:
+  - un dispositivo desconocido no queda activo automaticamente en produccion;
+  - alta, baja y bloqueo quedan auditados;
+  - PIN solo funciona en dispositivo activo.
+- Rate-limit por adaptador:
+  - memoria solo para desarrollo;
+  - persistente para produccion o limitacion single-instance documentada.
+- Headers de seguridad en API publica, API privada y HTML.
+- Redaccion de datos sensibles en logs.
 
-Tareas:
+Entregables de administracion:
 
-- Crear casos de uso privados de carta/menu.
-- Crear proyecciones publicas explicitas.
-- Aplicar cache publica basica si ya esta decidido.
-- Aplicar rate-limit publico.
-- Auditar cambios de publicacion.
-- Testear ocultar producto y que no aparezca en publico.
+- API/UI privada para configuracion del negocio.
+- API/UI privada para usuarios.
+- API/UI privada para roles/permisos si no queda fijo por codigo.
+- API/UI privada para dispositivos.
 
-Agentes:
+Entregables de auditoria:
 
-- Responsable: `backend-developer`.
-- DB: `database-designer`.
-- Seguridad: `security-auditor`.
-- QA: `qa-test-executor`.
+- Auditoria uniforme en:
+  - usuarios;
+  - dispositivos;
+  - configuracion;
+  - carta/menu;
+  - pedidos;
+  - cancelaciones;
+  - caja;
+  - cobros;
+  - stock;
+  - compras;
+  - proveedores;
+  - reservas.
+- Campos minimos:
+  - `usuarioId`
+  - `rol`
+  - `accion`
+  - `entidad`
+  - `entidadId`
+  - `requestId`
+  - `ip`
+  - `motivo`
+  - `antes`
+  - `despues`
+  - `creadoEn`
 
-Gate:
+Gate de cierre:
 
-- No se expone coste, margen, stock interno, proveedor, auditoria, ventas, caja ni datos personales.
-- Tests API publica verdes.
-- Errores publicos no revelan detalles internos.
+- Tests de permisos por rol.
+- Tests de dispositivo activo/inactivo.
+- Tests de auditoria por mutacion critica.
+- Security review sin hallazgos criticos abiertos.
 
-## 9. Fase 5 - Sistema UI y web publica
-
-Objetivo:
-
-- Crear base visual reusable y primera superficie publica.
-
-Entregables:
-
-- `packages/ui` con componentes base.
-- Layout publico.
-- Pagina publica de carta.
-- Pagina publica de menu del dia.
-- Estados de carga, vacio y error.
-
-Componentes base:
-
-- Boton.
-- Campo.
-- Input.
-- Modal.
-- Dialogo confirmacion.
-- Banner alerta.
-- Estado vacio.
-- Skeleton.
-- Tabla.
-- Filtro.
-- Paginacion.
-- Tarjeta metrica.
-- Badge estado.
-- Selector fecha.
-- Selector categoria.
-
-Tareas:
-
-- Definir tokens visuales base.
-- Implementar componentes reutilizables.
-- Implementar cliente API publico.
-- Implementar filtros por categoria y alergenos.
-- Validar responsive movil y desktop.
-
-Agentes:
-
-- Diseno: `diseñador-ux-ui`.
-- Implementacion: `frontend-developer`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Sin `fetch` directo en componentes.
-- Componentes publicos no consumen DTOs internos.
-- A11y basica correcta.
-- Sin duplicacion de patrones comunes.
-
-## 10. Fase 6 - Auth, usuarios, roles, permisos y dispositivos
+## 10. Fase 6 - UX operativa, web publica y accesibilidad
 
 Objetivo:
 
-- Habilitar operacion privada segura.
+- Cerrar la experiencia visible sin introducir nuevas funcionalidades de negocio.
 
-Entregables:
+Entregables UX:
+
+- Sustituir `window.prompt` y `window.alert` por dialogos accesibles.
+- Navegacion privada filtrada por permisos.
+- Estados de carga, vacio, error y exito en flujos criticos.
+- Confirmaciones con motivo cuando afecten a caja, stock, cancelaciones o auditoria.
+- Pantallas operativas ajustadas a tablet/TPV.
+
+Entregables web publica:
+
+- Renderizar `imagenUrl` cuando exista.
+- Metadata real del negocio.
+- Carta publica con categorias, platos, alergenos, precio y estado publico.
+- Menu del dia publicado.
+- Sin datos internos en HTML ni JSON publico.
+
+Entregables accesibilidad:
+
+- Foco visible.
+- Labels asociados.
+- Dialogos con roles y cierre por teclado.
+- Errores anunciados.
+- Contraste revisado.
+- Navegacion por teclado en flujos principales.
+
+Gate de cierre:
+
+- Smoke de sala/caja sin prompts nativos.
+- Smoke de carta publica y menu del dia.
+- Auditoria axe/Lighthouse sin errores criticos.
+- Navegacion privada no muestra enlaces sin permiso.
+
+## 11. Fase 7 - QA final y release controlado
+
+Objetivo:
+
+- Demostrar que la aplicacion cumple el PRD y que las diferencias auditadas estan cerradas.
+
+Matriz QA minima:
 
 - Login email/password.
-- Login rapido por PIN.
-- Gestion de usuarios.
-- Roles y permisos.
-- Dispositivos autorizados.
-- Sesiones con expiracion de turno.
-- Middleware/API privada protegida.
-
-Tareas:
-
-- Hash fuerte de password y PIN.
-- Modelo de sesion.
-- `ContextoOperacion`.
-- Guard de permisos en backend.
-- UI de login y seleccion de modo.
-- Auditoria de login sensible y cambios de permisos.
-
-Agentes:
-
-- Responsable backend: `backend-developer`.
-- UI: `diseñador-ux-ui`, `frontend-developer`.
-- Seguridad: `security-auditor`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Backend valida permisos siempre.
-- PIN solo funciona con dispositivo activo.
-- Rate-limit login/PIN.
-- Tests de permisos por rol.
-
-## 11. Fase 7 - Sala, mesas y pedidos
-
-Objetivo:
-
-- Crear nucleo operativo del TPV.
-
-Entregables:
-
-- Zonas y mesas.
-- Mapa/lista de mesas.
-- Crear pedido.
-- Anadir lineas.
-- Enviar lineas a cocina/barra.
-- Cancelaciones directas y solicitadas.
-- Auditoria de pedido.
-
-Tareas:
-
-- Modelar `Zona`, `Mesa`, `Pedido`, `LineaPedido`, `SolicitudCancelacion`.
-- Casos de uso:
-  - abrir mesa;
-  - transferir mesa;
-  - fusionar mesas;
-  - crear pedido;
-  - anadir linea;
-  - enviar pedido;
-  - cancelar linea.
-- UI tablet para sala.
-- Tests de invariantes.
-
-Agentes:
-
-- DB: `database-designer`.
-- Backend: `backend-developer`.
-- UX/UI: `diseñador-ux-ui`, `frontend-developer`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Mesa no tiene mas de un pedido activo.
-- Pedido cerrado no acepta lineas.
-- No se cobra con lineas pendientes/preparacion.
-
-## 12. Fase 8 - Cocina, barra y realtime
-
-Objetivo:
-
-- Coordinar servicio en tiempo real.
-
-Entregables:
-
-- Pantalla cocina.
-- Pantalla barra.
-- Canales realtime:
-  - `sala`;
-  - `cocina`;
-  - `barra`;
-  - `admin`;
-  - `mesa:{mesaId}`;
-  - `pedido:{pedidoId}`.
-- Eventos versionados.
-- Reconexion con recuperacion via API.
-
-Tareas:
-
-- Adaptar eventos de dominio a realtime.
-- Validar union a canales por rol/permisos/dispositivo.
-- Implementar estados de linea.
-- UI para avance rapido de preparacion.
-- Tests de eventos duplicados/idempotencia.
-
-Agentes:
-
-- Responsable: `backend-developer`.
-- UI: `frontend-developer`.
-- Seguridad: `security-auditor`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Socket autentica usuario, rol, permisos y dispositivo.
-- Reconexion recupera estado.
-- Eventos duplicados no rompen UI.
-
-## 13. Fase 9 - Stock operativo
-
-Objetivo:
-
-- Mantener coherencia entre pedidos, reservas y stock fisico.
-
-Entregables:
-
-- `StockFisico`.
-- `ReservaStock`.
-- `MovimientoStock`.
-- Ajustes manuales con motivo.
-- Recalculo de disponibilidad.
-
-Tareas:
-
-- Reservar stock al anadir/enviar linea segun decision final.
-- Liberar reserva al cancelar.
-- Consolidar reserva al cobrar.
-- Impedir ajuste por debajo de reservado.
-- Mostrar estados de disponibilidad.
-
-Agentes:
-
-- DB: `database-designer`.
-- Backend: `backend-developer`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- `stockFisico.cantidad >= suma(reservasActivas)`.
-- Reservar no descuenta fisico.
-- Cobrar descuenta fisico.
-- Cancelar libera reserva.
-
-## 14. Fase 10 - Caja, cobros y cierre
-
-Objetivo:
-
-- Completar flujo economico basico.
-
-Entregables:
-
+- Login PIN con dispositivo activo.
+- Usuario sin permiso bloqueado en backend.
 - Apertura de caja.
-- Cobro efectivo, tarjeta y mixto.
+- Apertura de mesa.
+- Pedido con linea a cocina.
+- Pedido con linea a barra.
+- Cambio de estado realtime.
+- Cancelacion directa.
+- Solicitud y aprobacion de cancelacion.
+- Cobro efectivo.
+- Cobro tarjeta.
+- Cobro mixto.
 - Cuenta dividida.
-- Movimientos manuales.
+- Consolidacion de stock.
 - Cierre de caja.
-- Tickets/precuenta basicos.
-- Informe de caja.
-
-Tareas:
-
-- Modelar `Caja`, `MovimientoCaja`, `SesionPago`, `PagoDividido`.
-- Implementar cobro normal, mixto y dividido.
-- Auditar movimientos.
-- Consolidar stock tras cobro.
-- UI de caja tactil.
-
-Agentes:
-
-- DB: `database-designer`.
-- Backend: `backend-developer`.
-- UX/UI: `diseñador-ux-ui`, `frontend-developer`.
-- Seguridad: `security-auditor`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Cobro mixto exige suma exacta.
-- Caja no cierra con inconsistencias sin permiso.
-- Pago consolidado no se revierte por fallo de registro; crea auditoria de reconciliacion.
-
-## 15. Fase 11 - Reservas, clientes e impresoras
-
-Objetivo:
-
-- Cubrir gestion diaria alrededor del servicio.
-
-Entregables:
-
-- Clientes.
-- Reservas.
-- Lista de espera.
-- Impresoras por zona.
-- Tickets cocina/barra/precuenta/recibo.
-
-Tareas:
-
-- Modelar cliente/reserva/lista.
-- UI calendario/listado.
-- Estados de reserva y lista.
-- Adaptador de impresion reemplazable.
-- Registro de fallos de impresion.
-
-Agentes:
-
-- DB: `database-designer`.
-- Backend: `backend-developer`.
-- UI: `diseñador-ux-ui`, `frontend-developer`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Datos personales no aparecen en API publica.
-- Fallo de impresion no bloquea pedido/cobro.
-- Fallo queda registrado.
-
-## 16. Fase 12 - Compras, proveedores y escandallos
-
-Objetivo:
-
-- Gestionar coste, recepciones y margen.
-
-Entregables:
-
-- Proveedores.
-- Productos de proveedor.
-- Historial de precios.
-- Pedidos de compra.
-- Recepciones con impacto en stock.
-- Recetas/escandallos.
-
-Tareas:
-
-- Modelar entidades de compra.
-- Recepcionar mercancia y crear movimiento de stock.
-- Calcular costes y margenes internos.
-- UI backoffice.
-
-Agentes:
-
-- DB: `database-designer`.
-- Backend: `backend-developer`.
-- UI: `frontend-developer`.
-- QA: `qa-test-executor`.
-
-Gate:
-
-- Costes/margenes nunca salen por API publica.
-- Recepcion crea movimiento de stock.
-- Pedido compra respeta estados.
-
-## 17. Fase 13 - Auditoria, informes y analitica
-
-Objetivo:
-
-- Dar trazabilidad y vision operativa al negocio.
-
-Entregables:
-
+- Informe de turno.
+- API publica de negocio.
+- API publica de carta.
+- API publica de plato por slug.
+- API publica de menu del dia.
+- Reserva y lista de espera.
+- Compra y recepcion con impacto en stock.
 - Auditoria consultable.
-- Dashboard operativo.
-- Informes de ventas, caja, productos, stock, reservas, compras, tiempos, cancelaciones y margenes.
+- Backup y restore en entorno controlado.
 
-Tareas:
+Pruebas no funcionales:
 
-- Consolidar registro de auditoria.
-- Crear consultas agregadas.
-- Definir permisos por informe.
-- UI de dashboard.
-- Exportaciones basicas si aplica.
+- Carga basica API publica con p95/p99 documentado.
+- Reconexion realtime.
+- Accesibilidad automatizada.
+- Revision de logs sin datos sensibles.
+- Migraciones en estado limpio.
 
-Agentes:
+Gate final:
 
-- Backend: `backend-developer`.
-- DB: `database-designer`.
-- UI: `diseñador-ux-ui`, `frontend-developer`.
-- Seguridad: `security-auditor`.
-- QA: `qa-test-executor`.
+```bash
+corepack pnpm -r lint
+corepack pnpm -r type-check
+corepack pnpm -r test
+corepack pnpm -r build
+corepack pnpm db:migrate:status
+```
 
-Gate:
+Con DB real:
 
-- Usuarios sin permiso no ven caja, margenes ni auditoria.
-- Informes no mezclan datos publicos e internos.
-- Auditoria no se edita desde UI.
+```powershell
+$env:RUN_DB_TESTS = "1"
+$env:DATABASE_URL = "postgresql://tpv:tpv@localhost:5432/tpv"
+corepack pnpm test:db
+```
 
-## 18. Fase 14 - Hardening y entrega MVP
+Condiciones de release:
 
-Objetivo:
+- 0 diferencias criticas abiertas.
+- 0 tests placeholder usados como evidencia de paquetes criticos.
+- 0 rutas publicas con datos internos.
+- 0 mutaciones criticas sin auditoria.
+- 0 flujos economicos sin transaccion o reconciliacion.
+- Checklist de despliegue ejecutado en entorno controlado.
 
-- Preparar el MVP para uso real controlado.
+## 12. Responsables
 
-Entregables:
-
-- Suite de tests critica.
-- Auditoria de seguridad.
-- Revision de modularidad.
-- Configuracion de despliegue.
-- Documentacion de operacion.
-- Backlog post-MVP.
-
-Tareas:
-
-- Ejecutar matriz QA completa.
-- Ejecutar security review.
-- Revisar performance de API publica.
-- Revisar errores y logging.
-- Revisar backups/migraciones.
-- Revisar a11y basica.
-- Crear checklist de despliegue.
-
-Agentes:
-
-- Coordinacion: `tech-lead`.
-- QA: `qa-test-executor`.
-- Seguridad: `security-auditor`.
-- Apoyo: `backend-developer`, `frontend-developer`, `database-designer`.
-
-Gate:
-
-- Flujo completo operativo:
-  1. Login.
-  2. Apertura de mesa.
-  3. Pedido de carta o menu.
-  4. Envio a cocina/barra.
-  5. Preparacion y servido.
-  6. Cobro.
-  7. Consolidacion stock.
-  8. Cierre caja.
-  9. Informe del turno o dia.
-- API publica pasa revision de seguridad.
-- Build y tests verdes.
-
-## 19. Backlog transversal
-
-Estos trabajos no son fase aislada; acompanian todo el desarrollo.
-
-### 19.1 Calidad
-
-- Tests de dominio por invariantes.
-- Tests de casos de uso criticos.
-- Tests API publica y privada.
-- Tests realtime.
-- Tests UI para flujos principales.
-
-### 19.2 Seguridad
-
-- Hash fuerte password/PIN.
-- Rate-limit login/API publica.
-- Redaccion de logs.
-- Headers de seguridad.
-- Secretos validados al arranque.
-- Permisos backend obligatorios.
-
-### 19.3 Modularidad
-
-- Revisar imports por capa.
-- Evitar reglas en UI/API.
-- Mantener DTOs publicos separados.
-- Mantener componentes reutilizables.
-- Evitar strings magicos.
-
-### 19.4 Documentacion
-
-- Mantener `aplicacion-requisitos.md` como PRD.
-- Mantener `plan-desarrollo.md` como plan operativo.
-- Registrar cambios en bitacora de `AGENTS.md`.
-- Documentar contratos relevantes cuando se cierren.
-
-## 20. Riesgos principales
-
-| Riesgo | Impacto | Mitigacion |
+| Fase | Responsable principal | Apoyos |
 | --- | --- | --- |
-| Scope creep hacia SaaS | Rompe simplicidad del MVP | Hooks + PRD + gates sin tenancy v1. |
-| Reglas en UI/API | Deuda y bugs dificiles | Dominio/aplicacion obligatorios, check modularidad. |
-| API publica filtrando datos internos | Riesgo de seguridad | DTOs publicos separados, security audit y tests. |
-| Caja/stock inconsistentes | Perdida operativa | Invariantes de dominio y tests antes de UI final. |
-| Realtime fragil | Cocina/barra pierden confianza | Reconexion por API, eventos idempotentes. |
-| UI poco usable en servicio | Lentitud en operacion | UX tablet-first, estados claros, pruebas manuales. |
+| 1 - Contratos | Tech Lead | Backend, Frontend, QA |
+| 2 - Modularidad | Tech Lead | Backend, Database, QA |
+| 3 - Cobro/caja/stock | Backend | Database, QA, Security |
+| 4 - Realtime | Backend | Frontend, QA |
+| 5 - Seguridad/admin/auditoria | Security | Backend, Frontend, QA |
+| 6 - UX/web/a11y | UX/UI | Frontend, QA |
+| 7 - QA final | QA | Tech Lead, Security |
 
-## 21. Handoff inicial
+## 13. No hacer en este plan
 
-Que entendi:
+- No implementar SaaS.
+- No introducir multiempresa.
+- No introducir multiestablecimiento.
+- No redisenar el producto.
+- No anadir integracion bancaria real.
+- No anadir app movil nativa.
+- No migrar a microservicios.
+- No construir nuevas areas de negocio fuera de las diferencias auditadas.
+- No maquillar la UI antes de corregir contratos, transacciones y realtime.
 
-- Se quiere pasar de PRD a proyecto real con fases claras.
+## 14. Handoff para el siguiente bloque
 
-Que decidi:
+Siguiente paso recomendado:
 
-- Planificar por valor incremental: fundacion, carta/API publica, UI, auth, TPV, stock, caja, gestion, backoffice y hardening.
+1. Ejecutar Fase 1 completa.
+2. Abrir issues o tareas por cada contrato/estado/error/evento divergente.
+3. No tocar cobro ni realtime hasta cerrar los contratos compartidos.
+4. Registrar cada correccion en la bitacora de `AGENTS.md`.
 
-Que entrego:
+Primera entrega esperada:
 
-- Plan operativo accionable por fases, con entregables, tareas, agentes y gates.
-
-Que asumo:
-
-- Aun no existe codigo de app.
-- Se empezara desde scaffold limpio.
-- El alcance sigue siendo un solo negocio.
-
-Que no puedo decidir:
-
-- Proveedor final de auth.
-- ORM final si no se usa Prisma.
-- Proveedor de imagenes.
-- Politica exacta de cache publica.
-- Si la pagina publica vive en `apps/tpv` o en frontend externo.
-
-Riesgos:
-
-- Activar demasiadas fases a la vez generaria deuda.
-- La fase de carta/API publica debe cerrarse bien porque define contratos y seguridad temprana.
-
-Siguiente agente:
-
-- `tech-lead`: convertir este plan en issues/epicas y cerrar decisiones tecnicas de Fase 0.
+- PR con contratos corregidos.
+- Migracion o adaptador de estados.
+- Tests contractuales reales.
+- API publica devolviendo `precio: string`.
+- `ErrorApi` con `requestId` obligatorio.

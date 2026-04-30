@@ -1,89 +1,104 @@
 # AGENTS.md
 
-Guia operativa local para trabajar en este repo de requisitos de `tpv-el-jardin`.
+Guia operativa local para trabajar en este repo de `tpv-el-jardin`.
 
 ---
 
 ## 1. Fuente de contexto obligatoria
 
-Antes de editar documentacion:
+Antes de editar documentacion, fases, arquitectura o backlog:
 
 1. Leer `aplicacion-requisitos.md`.
-2. Leer `plan-desarrollo.md` cuando exista y la tarea toque implementacion, fases, backlog, epicas o priorizacion.
+2. Leer `plan-desarrollo.md`.
 3. Revisar `.codex/agents/tech-lead.md` cuando la tarea cambie arquitectura, modulos, contratos o decisiones de producto.
 4. Revisar `.codex/skills/check-modularidad/SKILL.md.md` cuando la tarea toque modularidad, responsabilidades o estructura.
 5. Revisar `.codex/skills/handoff-agente/SKILL.md.md` cuando la entrega deba servir a otro agente o implementador.
 6. Revisar `.codex/skills/find-skills/SKILL.md.md` cuando se busque extender capacidades del ecosistema.
 
-
 ---
 
 ## 2. Mision actual
 
-Mantener `aplicacion-requisitos.md` como especificacion PRD + arquitectura para una nueva aplicacion TPV construida desde cero.
+Mantener el repo como aplicacion TPV real para un solo negocio, alineada con `aplicacion-requisitos.md`, y ejecutar las fases de correccion post-auditoria documentadas en `plan-desarrollo.md`.
 
 Objetivo de producto:
 
 - Un solo negocio en v1.
-- Sin SaaS, multi-empresa ni multi-establecimiento en el alcance inicial.
+- Sin SaaS, multiempresa ni multiestablecimiento.
 - Sin `Empresa` como tenant ni `Establecimiento` como filtro obligatorio.
-- API publica de solo lectura para mostrar carta, platos y menu en la pagina web.
+- API publica de solo lectura para carta, platos, categorias, menu y datos visibles del negocio.
 - Codigo propio en espanol total, salvo librerias, frameworks, APIs externas y funciones nativas.
 - Arquitectura monolitica modular, testeable, escalable y sin deuda heredada.
+
+Estado de release:
+
+- Fase 14 queda reabierta logicamente tras auditoria.
+- El MVP no se considera liberable hasta cerrar C1, C2 y C3 como minimo.
+- C4-C7 preparan la entrega operativa real.
 
 ---
 
 ## 3. Estado local observado
 
-Referencia local: 2026-04-28 09:55.
+Referencia local: 2026-04-29 22:45.
 
-- Root actual contiene `.codex/`, `.git`, `AGENTS.md`, `README.md` y `aplicacion-requisitos.md`.
-- `git status --short` funciona.
-- Estado git observado tras esta reestructuracion: `M AGENTS.md`, `M aplicacion-requisitos.md`.
-- `aplicacion-requisitos.md` existe y contiene el PRD monolitico modular para un solo negocio.
-- `plan-desarrollo.md` existe como plan operativo por fases para convertir el PRD en proyecto real.
+- `aplicacion-requisitos.md` existe como PRD + arquitectura objetivo.
+- `plan-desarrollo.md` documenta ahora auditoria post-Fase 14, hallazgos A-01..A-15 y fases C0..C7.
+- `README.md` debe reflejar stack real, estado auditado y limitaciones de release.
+- `AGENTS.md` conserva la bitacora historica y esta guia operativa.
+- `docker-compose.yml` usa PostgreSQL 17.
+- Realtime actual usa SSE/EventSource, no socket.io.
+- `.env.example` existe en local, pero `.gitignore` ignora `.env*`; antes de un repo limpio hay que decidir si se versiona como excepcion o se documentan variables en otro archivo publico.
+- Hay cambios locales no necesariamente atribuibles al agente actual; no revertir nada salvo peticion explicita.
+
+Validaciones recientes registradas:
+
+- `corepack pnpm -r lint`: OK.
+- `corepack pnpm -r type-check`: OK.
+- `corepack pnpm -r test`: OK, con tests placeholder en algunos paquetes.
+- `corepack pnpm -r build`: OK.
+- `RUN_DB_TESTS=1 corepack pnpm test:db`: OK.
+- `corepack pnpm db:migrate:status`: OK.
 
 ---
 
 ## 4. Prioridad vigente
 
-1. Mantener `aplicacion-requisitos.md` como PRD para un solo negocio.
-2. Evitar complejidad SaaS salvo nueva decision explicita de producto:
-   - Sin multi-empresa.
-   - Sin multi-establecimiento.
-   - Sin billing SaaS.
-   - Sin tenancy obligatoria en cada query.
-3. Mantener arquitectura recomendada:
-   - Monolito modular.
-   - `apps/tpv` para UI Next.js, API privada, API publica y pagina publica si aplica.
-   - `packages/dominio` para reglas puras.
-   - `packages/aplicacion` para casos de uso, permisos y transacciones.
-   - `packages/contratos` para DTOs, eventos y schemas.
-   - `packages/infra` para Prisma/ORM, realtime, cache, logger e impresoras.
-   - `packages/ui` para componentes reutilizables.
-4. Mantener fuera de alcance inicial:
-   - Billing SaaS.
-   - Multi-empresa y multi-establecimiento.
-   - Multi-pais/fiscalidad compleja.
-   - Microservicios.
-   - Marketplace/plugins.
-5. Siguiente paso natural: convertir PRD en backlog de epicas o contratos tecnicos.
-6. Mantener `plan-desarrollo.md` como plan operativo cuando cambie el orden de implementacion.
+1. Mantener el alcance de un solo negocio:
+   - sin SaaS;
+   - sin multiempresa;
+   - sin multiestablecimiento;
+   - sin tenancy preventiva;
+   - sin microservicios.
+2. Cerrar bloqueantes antes de release:
+   - C1 realtime funcional;
+   - C2 atomicidad de cobro/caja/stock/pedido;
+   - C3 contratos, estados, errores y eventos alineados con PRD.
+3. Reducir deuda arquitectonica:
+   - C4 modularidad real en `packages/dominio`, `packages/aplicacion`, `packages/contratos` y `packages/infra`.
+4. Completar operacion segura:
+   - C5 seguridad, auditoria, configuracion, usuarios y dispositivos.
+5. Convertir gates verdes en evidencia real:
+   - C6 tests reales y pruebas no funcionales.
+6. Pulir entrega:
+   - C7 UX operativa, web publica y accesibilidad.
 
 ---
 
 ## 5. Protocolo operativo por tarea
 
 1. Leer contexto obligatorio.
-2. Entender alcance real de la peticion.
-3. Hacer cambios documentales minimos y coherentes.
-4. Validar consistencia del documento:
-   - No contradicciones entre un solo negocio, modulos y arquitectura.
-   - Cada modulo mantiene responsabilidad clara y bajo acoplamiento.
-   - La API publica no expone datos internos.
-   - No quedan decisiones criticas abiertas si el usuario pidio cerrarlas.
-5. Registrar entrada en bitacora.
-6. Entregar resumen con cambios, validacion y pendientes.
+2. Identificar si la tarea toca una fase historica o una fase de correccion C0..C7.
+3. Mantener cambios minimos, coherentes y trazables.
+4. Validar consistencia:
+   - sin contradicciones con un solo negocio;
+   - sin datos internos en API publica;
+   - sin reglas de negocio nuevas en UI o handlers HTTP;
+   - sin contratos divergentes del PRD salvo decision documentada;
+   - sin mutaciones criticas fuera de transaccion cuando afectan a caja, pedido, stock o auditoria.
+5. Ejecutar gates proporcionales al cambio.
+6. Registrar entrada en bitacora.
+7. Entregar resumen con cambios, validacion y pendientes.
 
 ---
 
@@ -108,53 +123,93 @@ Formato:
 ## 7. Criterios tecnicos no negociables
 
 - Documentacion en espanol.
-- Usar ASCII salvo necesidad clara.
+- Usar ASCII salvo necesidad clara o nombres de archivo existentes.
 - Mantener requisitos accionables, no texto generico.
 - Distinguir producto, arquitectura, datos, API, realtime, seguridad, calidad y fuera de alcance.
 - No mezclar decisiones abiertas con requisitos ya decididos.
-- No introducir complejidad SaaS, tenancy o multi-establecimiento mientras el alcance sea un solo negocio.
+- No introducir complejidad SaaS, tenancy o multiestablecimiento mientras el alcance sea un solo negocio.
 - No borrar contexto util sin sustituirlo por una version mejor.
 - No modificar archivos ajenos al alcance pedido.
+- No declarar "MVP listo" mientras existan bloqueantes C1, C2 o C3.
+- No considerar un gate verde como suficiente si la suite solo contiene placeholders.
 
 ---
 
 ## 8. Decisiones ya tomadas
 
-- La nueva aplicacion se especifica para un solo negocio en v1.
-- SaaS, multi-empresa y multi-establecimiento quedan fuera del alcance inicial.
-- No se usara `Empresa` como tenant ni `Establecimiento` como filtro obligatorio en el MVP.
-- La aplicacion debe exponer API publica de solo lectura para carta, platos y menu de la web.
+- La aplicacion se especifica para un solo negocio en v1.
+- SaaS, multiempresa y multiestablecimiento quedan fuera del alcance inicial.
+- No se usara `Empresa` como tenant ni `Establecimiento` como filtro obligatorio.
+- La aplicacion debe exponer API publica de solo lectura para carta, platos, categorias y menu.
 - El MVP sigue siendo TPV operativo.
 - El idioma de codigo propio debe ser espanol total.
-- La salida documental deseada es PRD + arquitectura.
+- La arquitectura objetivo es monolito modular.
+- La Fase 14 queda auditada, no cerrada como release final.
+- Las correcciones C0..C7 son el camino oficial antes de despliegue real.
 
 ---
 
-## 9. Agentes locales
+## 9. Hallazgos y agentes locales
 
-Los agentes locales siguen activos y se ajustan al PRD monolitico modular para un solo negocio. Ninguno se descarta por ahora; cada uno aporta una responsabilidad distinta.
+Hallazgos de auditoria post-Fase 14:
 
-| Agente | Archivo | Estado | Uso principal |
+| ID | Area | Resumen | Fase |
 | --- | --- | --- | --- |
-| Tech Lead | `.codex/agents/tech-lead.md` | Activo | Coordinar arquitectura, modulos, contratos, decisiones y handoff. |
-| Backend Developer | `.codex/agents/backend-developer.md` | Activo | Implementar casos de uso, API privada, API publica, permisos, auditoria y realtime. |
-| Database Designer | `.codex/agents/database-designer.md` | Activo | Disenar modelo de datos, constraints, indices, auditoria e historial sin tenancy v1. |
-| Disenador UX/UI | `.codex/agents/diseñador-ux-ui.md` | Activo | Definir flujos, pantallas, componentes reutilizables y estados. |
-| Frontend Developer | `.codex/agents/frontend-developer.md` | Activo | Implementar UI privada, web publica, hooks, cliente API y componentes. |
-| QA Test Executor | `.codex/agents/qa-test-executor.md` | Activo | Validar flujos criticos, regresion, API publica, permisos, stock, caja y realtime. |
-| Security Auditor | `.codex/agents/security-auditor.md` | Activo | Auditar auth, permisos, API publica, datos, secretos, DB e infraestructura. |
+| A-01 | Realtime | SSE emite eventos nombrados y cliente escucha `onmessage`. | C1 |
+| A-02 | Cobro | Cobro, caja, stock y pedido no son una transaccion unica. | C2 |
+| A-03 | Caja | Cuenta dividida ignora importes parciales reales. | C2 |
+| A-04 | Arquitectura | Modularidad real incompleta. | C4 |
+| A-05 | API publica | DTO publico de precio diverge del PRD. | C3 |
+| A-06 | Estados | Estados de reservas/lista espera/compras no coinciden plenamente con PRD. | C3 |
+| A-07 | Errores | `ErrorApi` no coincide por completo con PRD. | C3 |
+| A-08 | Eventos | Realtime usa nombres y forma no alineados con PRD. | C1/C3 |
+| A-09 | Auditoria | Mutaciones criticas no auditan de forma uniforme. | C5 |
+| A-10 | Admin | Faltan UI/API completas de usuarios, dispositivos y configuracion. | C5 |
+| A-11 | QA | Tests placeholder reducen valor de gates verdes. | C6 |
+| A-12 | Infra | Rate-limit y backlog realtime viven en memoria. | C1/C5 |
+| A-13 | UX/a11y | Prompts/alerts y permisos de navegacion pendientes. | C7 |
+| A-14 | Web publica | Imagenes/metadata publicas incompletas. | C7 |
+| A-15 | Docs | README y plan estaban desfasados frente al estado real. | C0 |
+
+Agentes locales activos:
+
+| Agente | Archivo | Uso principal |
+| --- | --- | --- |
+| Tech Lead | `.codex/agents/tech-lead.md` | Coordinar arquitectura, modulos, contratos, decisiones y handoff. |
+| Backend Developer | `.codex/agents/backend-developer.md` | Implementar casos de uso, API privada/publica, permisos, auditoria y realtime. |
+| Database Designer | `.codex/agents/database-designer.md` | Disenar modelo de datos, constraints, indices, auditoria e historial sin tenancy v1. |
+| Disenador UX/UI | `.codex/agents/diseñador-ux-ui.md` | Definir flujos, pantallas, componentes reutilizables y estados. |
+| Frontend Developer | `.codex/agents/frontend-developer.md` | Implementar UI privada, web publica, hooks, cliente API y componentes. |
+| QA Test Executor | `.codex/agents/qa-test-executor.md` | Validar flujos criticos, regresion, API publica, permisos, stock, caja y realtime. |
+| Security Auditor | `.codex/agents/security-auditor.md` | Auditar auth, permisos, API publica, datos, secretos, DB e infraestructura. |
 
 Reglas de sintonia:
 
-- Todos leen `AGENTS.md` y `aplicacion-requisitos.md`.
+- Todos leen `AGENTS.md`, `aplicacion-requisitos.md` y `plan-desarrollo.md`.
 - `CLAUDE.md`, si reaparece, sera contexto adicional, no fuente superior al PRD actual.
-- Ningun agente debe introducir SaaS, multi-empresa, multi-establecimiento, tenancy preventiva ni microservicios sin nueva decision explicita.
+- Ningun agente debe introducir SaaS, multiempresa, multiestablecimiento, tenancy preventiva ni microservicios sin nueva decision explicita.
 - Tech Lead coordina conflictos entre agentes.
 - QA y Security validan antes de considerar cerrada una entrega sensible.
 
 ---
 
 ## 10. Bitacora de acciones
+
+### [2026-04-30 09:24] Redisenar plan de desarrollo limpio para corregir diferencias auditadas
+- Objetivo: sustituir el plan anterior por un documento limpio, sin cronologia de trabajo ya realizado, centrado solo en corregir diferencias entre PRD y aplicacion auditada.
+- Cambio aplicado: reescrito `plan-desarrollo.md` desde cero con reglas de trabajo, diferencias D1-D8, orden de correccion, fases 1-7, gates de cierre, responsables, exclusiones y handoff del siguiente bloque.
+- Archivos: `plan-desarrollo.md`, `AGENTS.md`.
+- Validacion: `git diff --check -- plan-desarrollo.md AGENTS.md` OK; `plan-desarrollo.md` sin caracteres no ASCII; `corepack pnpm -r lint` OK.
+- Estado del plan: el plan operativo deja de ser historico y pasa a ser una guia de correccion enfocada en contratos, modularidad, cobro atomico, realtime, seguridad, auditoria, UX y QA final.
+- Riesgos / pendientes: falta implementar las fases; la primera entrega recomendada es Fase 1 completa con contratos corregidos y tests reales.
+
+### [2026-04-29 22:45] Documentar auditoria y plan de correccion post-Fase 14
+- Objetivo: convertir los hallazgos de auditoria de cumplimiento del PRD en fases de correccion y alinear los documentos operativos del repo.
+- Cambio aplicado: actualizado `plan-desarrollo.md` con estado auditado, matriz A-01..A-15, estado de fases 0-14 y fases C0..C7; reescrito `README.md` con stack real, estado de release, comandos y bloqueantes; reescrita la cabecera operativa de `AGENTS.md` conservando la bitacora historica.
+- Archivos: `plan-desarrollo.md`, `README.md`, `AGENTS.md`.
+- Validacion: revision documental contra `aplicacion-requisitos.md` y hallazgos de auditoria; `git diff --check` OK; `corepack pnpm -r lint` OK; `corepack pnpm -r type-check` OK.
+- Estado del plan: Fase 14 pasa a estado auditado con bloqueantes; C0 queda documentada y C1-C7 pasan a ser el camino oficial antes de despliegue real.
+- Riesgos / pendientes: falta implementar correcciones; tests de paquetes siguen placeholder; `gate:full` ejecuta `format --write`, por lo que no debe usarse como unica validacion no destructiva.
 
 ### [2026-04-29 22:21] Fase 14 - crear checklist de despliegue (cierre de bloque)
 - Objetivo: completar el ultimo paso de Fase 14 con una guia operativa de despliegue y rollback.
