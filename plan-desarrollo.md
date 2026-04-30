@@ -1,477 +1,493 @@
-# Plan de desarrollo - Correccion de diferencias
+# Plan de desarrollo - TPV El Jardin
 
-Fecha: 2026-04-30.
-Estado: plan limpio para corregir diferencias entre `aplicacion-requisitos.md` y la aplicacion auditada.
+Fecha: 2026-04-29 22:45.
+Estado: auditado post-Fase 14. La aplicacion compila y los gates principales estan verdes, pero no se considera lista para despliegue real hasta cerrar las fases de correccion C0-C7.
 
 ## 1. Objetivo
 
-Arreglar las diferencias encontradas en la auditoria y llevar la aplicacion al PRD vigente:
+Convertir `aplicacion-requisitos.md` en una aplicacion TPV real, construida desde cero, para un solo negocio de restauracion.
 
-- Un solo negocio.
-- Sin SaaS, multiempresa, multiestablecimiento ni tenancy preventiva.
-- Monolito modular real.
-- Contratos publicos y privados estables.
-- Flujo critico de TPV consistente: sala, pedido, cocina/barra, cobro, caja, stock e informes.
-- API publica segura y solo lectura.
-- Auditoria y permisos aplicados en mutaciones criticas.
-- Tests que demuestren comportamiento, no solo scripts verdes.
+Principios obligatorios:
 
-Este documento no describe lo ya realizado. Solo define que hay que corregir, en que orden y como se cierra cada bloque.
+- Monolito modular.
+- Un solo negocio en v1.
+- Sin SaaS, multiempresa, multiestablecimiento, tenancy preventiva ni microservicios.
+- Codigo propio en espanol.
+- Dominio puro, aplicacion orquestadora e infraestructura como adaptador.
+- UI reutilizable.
+- API publica segura y solo lectura para carta, platos, categorias, menu y datos visibles del negocio.
+- Tests y gates desde la primera fase.
+- Trazabilidad, seguridad, atomicidad y contratos estables antes de liberar operacion real.
 
-## 2. Reglas de trabajo
+## 2. Estado auditado
 
-- No anadir funcionalidades nuevas mientras haya diferencias criticas abiertas.
-- No reabrir decisiones de producto ya cerradas salvo cambio explicito del PRD.
-- No introducir `Empresa`, `Establecimiento`, `empresaId` ni `establecimientoId`.
-- No declarar el MVP listo hasta superar el gate final de este plan.
-- Toda correccion debe tener prueba automatizada o evidencia manual reproducible.
-- Los handlers HTTP deben quedar finos: validar entrada, llamar caso de uso y responder.
-- Las reglas de negocio deben vivir en `packages/dominio` o `packages/aplicacion`.
-- El acceso a Prisma debe quedar encapsulado en `packages/infra`.
-- La API publica nunca debe exponer costes, stock interno, caja, auditoria, proveedores, usuarios ni datos personales.
+Auditoria ejecutada contra:
 
-## 3. Diferencias a cerrar
+- `aplicacion-requisitos.md`.
+- Arquitectura y codigo actual del workspace.
+- Fases implementadas en el plan hasta Fase 14.
+- Scripts de calidad, build, migraciones y pruebas DB.
 
-| ID | Area | Diferencia | Resultado esperado |
+Evidencia tecnica recogida:
+
+- `corepack pnpm -r lint`: OK.
+- `corepack pnpm -r type-check`: OK.
+- `corepack pnpm -r test`: OK, con tests placeholder en varios paquetes.
+- `corepack pnpm -r build`: OK.
+- `RUN_DB_TESTS=1 corepack pnpm test:db`: OK.
+- `corepack pnpm db:migrate:status`: OK, esquema actualizado; Prisma avisa de deprecacion de `package.json#prisma`.
+- Busqueda de tenancy v1 (`Empresa`, `Establecimiento`, `empresaId`, `establecimientoId`): sin deriva funcional detectada.
+
+Conclusion:
+
+- El MVP tiene una base amplia implementada, pero la auditoria encontro bloqueantes funcionales y arquitectonicos.
+- Fase 14 queda como "hardening inicial completado" pero no como cierre de entrega.
+- Antes de despliegue real deben ejecutarse las fases de correccion C0-C7.
+
+## 3. Gates globales
+
+Ninguna fase se considera cerrada si falla alguno:
+
+- `lint` limpio.
+- `type-check` limpio.
+- tests de la fase verdes.
+- build verde cuando exista app.
+- sin `any` sin justificacion.
+- sin `fetch` directo en componentes.
+- sin reglas de negocio en UI ni handlers HTTP.
+- sin DTOs internos como respuesta publica.
+- sin estados, permisos o eventos como strings magicos dispersos.
+- sin referencias de tenancy v1 (`Empresa`, `Establecimiento`, `empresaId`, `establecimientoId`) salvo prohibicion documentada.
+- sin mutaciones criticas fuera de transaccion cuando afecten a pedido, caja, stock, auditoria o realtime.
+- sin tests placeholder como unica evidencia para paquetes criticos.
+- sin contrato publico, error API o evento realtime divergente del PRD sin decision documentada.
+
+## 4. Orden de trabajo actualizado
+
+Orden historico implementado:
+
+1. Fase 0 - Preparacion del repositorio.
+2. Fase 1 - Scaffold monolitico modular.
+3. Fase 2 - Modelo de datos base.
+4. Fase 3 - Contratos y dominio base.
+5. Fase 4 - Carta, menu y API publica.
+6. Fase 5 - Sistema UI y web publica.
+7. Fase 6 - Auth, usuarios, roles, permisos y dispositivos.
+8. Fase 7 - Sala, mesas y pedidos.
+9. Fase 8 - Cocina, barra y realtime.
+10. Fase 9 - Stock operativo.
+11. Fase 10 - Caja, cobros y cierre.
+12. Fase 11 - Reservas, clientes e impresoras.
+13. Fase 12 - Compras, proveedores y escandallos.
+14. Fase 13 - Auditoria, informes y analitica.
+15. Fase 14 - Hardening y entrega MVP.
+
+Orden obligatorio post-auditoria:
+
+1. C0 - Recuperacion documental y bloqueo de release.
+2. C1 - Realtime funcional y contrato de eventos.
+3. C2 - Atomicidad de cobro, caja, stock y pedido.
+4. C3 - Contratos, estados y errores alineados con PRD.
+5. C4 - Modularidad real: dominio, aplicacion, infra y contratos.
+6. C5 - Seguridad, auditoria, configuracion y administracion.
+7. C6 - QA real, cobertura y pruebas no funcionales.
+8. C7 - UX operativa, web publica y accesibilidad final.
+
+## 5. Matriz de hallazgos
+
+| ID | Gravedad | Area | Encontrado | Riesgo | Correccion |
+| --- | --- | --- | --- | --- | --- |
+| A-01 | Critica | Realtime | El servidor SSE emite eventos nombrados con `event: ...`, pero el cliente solo usa `onmessage`. | Cocina, barra y sala pueden no actualizar en vivo. | C1 |
+| A-02 | Critica | Cobro/stock/caja | Cobro, consolidacion de stock, caja y cierre de pedido no se ejecutan en una unica transaccion. | Estados parciales y descuadres contables/inventario. | C2 |
+| A-03 | Critica | Cuenta dividida | La normalizacion de cobros divididos usa el total del pedido por cada division e ignora importes parciales. | Sobrecobros, cierres incorrectos y datos de caja falsos. | C2 |
+| A-04 | Alta | Arquitectura | `packages/dominio` y `packages/aplicacion` existen pero gran parte de la logica vive en rutas/servicios de `apps/tpv`. | Monolito modular solo parcial, mas acoplamiento y menor testeabilidad. | C4 |
+| A-05 | Alta | Contratos | DTO publico usa `precioCentimos`; PRD exige contrato minimo con `precio: string`. | API publica no cumple especificacion pactada. | C3 |
+| A-06 | Alta | Estados | Estados Prisma divergen del PRD en reservas, lista de espera y pedidos de compra. | Casos de uso y UI pueden representar estados incorrectos. | C3 |
+| A-07 | Alta | Errores/API | `ErrorApi` no coincide del todo con PRD: codigos, `detalles` y `requestId` requerido. | Observabilidad y contratos cliente inconsistentes. | C3 |
+| A-08 | Alta | Eventos | Eventos realtime usan nombres `.v1` y `payload`; PRD define nombres y forma distinta. | Clientes acoplados a contrato no documentado. | C1/C3 |
+| A-09 | Alta | Auditoria | Mutaciones criticas no registran `RegistroAuditoria` de forma uniforme. | Falta trazabilidad legal/operativa. | C5 |
+| A-10 | Alta | Auth/dispositivos/config | Faltan UI/API privadas completas para usuarios, dispositivos y configuracion; login puede auto-crear dispositivo activo. | Administracion incompleta y superficie de seguridad debil. | C5 |
+| A-11 | Media | QA | Gates verdes conviven con tests placeholder en paquetes criticos. | Falsa sensacion de cobertura. | C6 |
+| A-12 | Media | Infra realtime/rate-limit | Rate-limit y backlog realtime viven en memoria de proceso. | No resiste reinicios ni multiples instancias. | C1/C5 |
+| A-13 | Media | UX/a11y | Flujos usan `window.prompt`/`alert`; navegacion privada no se filtra por permisos; faltan auditorias axe/Lighthouse. | Operacion pobre y accesibilidad incompleta. | C7 |
+| A-14 | Media | Web publica | La web publica no renderiza imagenes aunque existe `imagenUrl`; metadata sigue generica. | Entrega publica incompleta y SEO pobre. | C7 |
+| A-15 | Media | Operacion | README apuntaba a `socket.io` y PostgreSQL 16, aunque el repo usa SSE y Docker Compose con PostgreSQL 17. | Documentacion enganosa para nuevos agentes/desarrolladores. | C0 |
+
+## 6. Estado de fases 0-14 tras auditoria
+
+| Fase | Estado auditado | Lo encontrado | Correccion asociada |
 | --- | --- | --- | --- |
-| D1 | Contratos | DTO publico, errores, estados y eventos no coinciden del todo con el PRD. | `packages/contratos`, Prisma, API y UI comparten la misma verdad. |
-| D2 | Modularidad | Hay logica de negocio en rutas y servicios de `apps/tpv`. | Dominio puro, aplicacion orquestadora, infra como adaptador. |
-| D3 | Cobro/caja/stock | Cobro, cierre de pedido, caja y stock no son una unidad atomica. | Cobrar pedido es transaccional, auditable y reconciliable. |
-| D4 | Cuenta dividida | Las divisiones pueden normalizarse contra el total en vez del importe parcial. | Cada division conserva su importe real y la suma debe cuadrar. |
-| D5 | Realtime | Servidor SSE y cliente no usan la misma convencion de entrega. | Eventos recibidos, deduplicados y recuperables tras reconexion. |
-| D6 | Seguridad/admin | Faltan piezas de administracion, politica de dispositivos, secretos y rate-limit persistente. | Operacion privada administrable y segura. |
-| D7 | Auditoria | No todas las mutaciones criticas registran auditoria uniforme. | Trazabilidad completa con `requestId`, usuario, accion, entidad y motivo cuando aplique. |
-| D8 | QA/UX/web | Hay tests placeholder, prompts/alerts operativos, permisos visuales incompletos y web publica sin remate. | Evidencia real de calidad y experiencia operativa cerrada. |
+| 0 - Preparacion | Parcial | Documentacion operativa quedo desactualizada frente al estado real. | C0 |
+| 1 - Scaffold | Parcial | La estructura existe, pero la separacion modular no se aplica de forma consistente. | C4 |
+| 2 - Modelo de datos | Parcial | Modelo amplio, pero estados no coinciden completamente con PRD. | C3 |
+| 3 - Contratos/dominio | Parcial | Contratos existen, pero hay divergencias en DTO publico, errores y eventos. | C3/C4 |
+| 4 - Carta/API publica | Parcial | Proyeccion publica segura en general, pero contrato de precio no coincide con PRD. | C3 |
+| 5 - UI publica/UI base | Parcial | Base creada, pero faltan imagenes publicas, metadata final y revision accesible completa. | C7 |
+| 6 - Auth/usuarios/dispositivos | Parcial | Auth base existe; faltan gestion privada, secret validation y politica de dispositivos cerrada. | C5 |
+| 7 - Sala/mesas/pedidos | Parcial | Flujo base existe, pero depende de realtime y mutaciones atomicas aun debiles. | C1/C2 |
+| 8 - Cocina/barra/realtime | Bloqueada | Contrato SSE servidor/cliente no encaja. | C1 |
+| 9 - Stock | Parcial | Flujo existe, pero consolidacion ligada al cobro no es atomica. | C2 |
+| 10 - Caja/cobros/cierre | Bloqueada | Cuenta dividida y transaccion de cobro tienen riesgos criticos. | C2 |
+| 11 - Reservas/clientes/impresoras | Parcial | Estados de reservas/lista espera divergen; impresion base correcta pero requiere observabilidad final. | C3/C7 |
+| 12 - Compras/proveedores/escandallos | Parcial | Pedido compra usa estado distinto al PRD; faltan pruebas y auditoria uniforme. | C3/C5/C6 |
+| 13 - Auditoria/informes | Parcial | Informes base existen; auditoria no cubre todas las mutaciones criticas. | C5 |
+| 14 - Hardening/entrega | Reabierta | Gates verdes, pero con bloqueantes funcionales y cobertura enganosa. | C0-C7 |
 
-## 4. Orden de correccion
+## 7. Fases de correccion post-auditoria
 
-El orden es deliberado:
-
-1. Contratos y estados.
-2. Modularidad base.
-3. Flujo atomico de cobro, caja y stock.
-4. Realtime.
-5. Seguridad, administracion y auditoria.
-6. UX, web publica y accesibilidad.
-7. QA final y release.
-
-Razon:
-
-- Primero se fija el lenguaje compartido.
-- Despues se mueven reglas a las capas correctas.
-- Luego se corrige el flujo economico mas critico.
-- Realtime se estabiliza sobre contratos ya cerrados.
-- Seguridad, auditoria y administracion cierran la operacion privada.
-- UX y web rematan la entrega visible.
-- QA final valida que no se ha construido sobre una base falsa.
-
-## 5. Fase 1 - Contratos, estados y errores
+### C0 - Recuperacion documental y bloqueo de release
 
 Objetivo:
 
-- Eliminar divergencias entre PRD, Prisma, Zod, DTOs, eventos, API y UI.
+- Dejar claro que el MVP no queda liberable hasta cerrar correcciones criticas.
+- Alinear `plan-desarrollo.md`, `README.md` y `AGENTS.md` con el estado real.
 
-Decisiones:
+Hallazgos cubiertos:
 
-- El contrato publico de plato usa `precio: string`, no `precioCentimos`.
-- `ErrorApi` usa esta forma:
-
-```ts
-type ErrorApi = {
-  codigo: string;
-  mensaje: string;
-  detalles?: unknown;
-  requestId: string;
-};
-```
-
-- Los codigos de error validos son:
-  - `validacion`
-  - `sin_permiso`
-  - `no_autenticado`
-  - `no_encontrado`
-  - `conflicto`
-  - `stock_insuficiente`
-  - `no_publicado`
-  - `limite_peticion`
-  - `error_interno`
-- Estados de reserva:
-  - `solicitud`
-  - `confirmada`
-  - `en_riesgo`
-  - `no_presentado`
-  - `completada`
-  - `cancelada`
-- Estados de lista de espera:
-  - `esperando`
-  - `avisado`
-  - `atendido`
-  - `cancelado`
-  - `sin_respuesta`
-- Estados de pedido de compra:
-  - `borrador`
-  - `enviado`
-  - `parcial`
-  - `recibido`
-  - `cancelado`
-- Eventos realtime usan el sobre:
-
-```ts
-type EventoRealtime<T> = {
-  version: 1;
-  nombre: string;
-  ocurridoEn: string;
-  requestId: string;
-  datos: T;
-};
-```
+- A-15 y estado global post-auditoria.
 
 Entregables:
 
-- `packages/contratos` como fuente de verdad de DTOs, schemas, errores y eventos.
-- Migracion o adaptador para estados persistidos divergentes.
-- API publica ajustada a contratos publicos.
-- Cliente API ajustado a los nuevos contratos.
-- Tests contractuales para API publica, errores y eventos.
+- Plan de correccion documentado por fases.
+- README reescrito con estado auditado, stack real, comandos y limitaciones.
+- AGENTS reescrito con protocolo operativo, prioridades y bitacora.
+- Nota explicita: Fase 14 no equivale a release final.
 
-Gate de cierre:
+Validacion:
 
-- No quedan strings magicos de estados, permisos, errores o eventos fuera de contratos.
-- `corepack pnpm --filter @el-jardin/contratos test` tiene tests reales.
-- Endpoints publicos devuelven `precio: string`.
-- Todos los errores API incluyen `requestId`.
+- Revision documental contra `aplicacion-requisitos.md`.
+- `git diff --check`.
+- No tocar codigo de producto en esta fase salvo correcciones documentales.
 
-## 6. Fase 2 - Modularidad real
+### C1 - Realtime funcional y contrato de eventos
 
 Objetivo:
 
-- Convertir la estructura de carpetas en limites reales de arquitectura.
+- Garantizar que sala, cocina, barra, caja e informes reciben eventos en vivo de forma verificable.
 
-Responsabilidades finales:
+Hallazgos cubiertos:
 
-| Capa | Responsabilidad |
-| --- | --- |
-| `packages/dominio` | Reglas puras, invariantes, transiciones de estado, validacion de importes y stock. |
-| `packages/aplicacion` | Casos de uso, permisos, transacciones, auditoria de aplicacion y eventos resultantes. |
-| `packages/contratos` | DTOs, schemas, errores, permisos y eventos compartidos. |
-| `packages/infra` | Prisma, repositorios, logger, cache, rate-limit, realtime e impresoras. |
-| `apps/tpv` | UI, rutas HTTP, composicion de dependencias y adaptadores de entrada. |
-
-Casos de uso minimos a extraer:
-
-- `cobrarPedido`
-- `abrirCaja`
-- `cerrarCaja`
-- `anadirLineaPedido`
-- `enviarPedidoAProduccion`
-- `actualizarEstadoLinea`
-- `cancelarLineaPedido`
-- `ajustarStock`
-- `recepcionarPedidoCompra`
-- `publicarCarta`
-- `publicarMenuDia`
-- `registrarAuditoria`
+- A-01, A-08, A-12.
 
 Entregables:
 
-- Puertos de repositorio definidos en `packages/aplicacion`.
-- Implementaciones Prisma en `packages/infra`.
-- Handlers HTTP sin reglas de negocio.
-- Tests de dominio para invariantes.
-- Tests de aplicacion para casos de uso criticos.
+- Decidir y documentar una sola convencion SSE:
+  - O bien todos los eventos van por `message`.
+  - O bien el cliente registra listeners para eventos nombrados.
+- Alinear nombres y payload con `aplicacion-requisitos.md` o actualizar PRD con decision explicita.
+- Prueba automatizada que reproduzca un evento servidor y demuestre recepcion cliente.
+- Backlog/replay con `desdeId` probado tras reconexion.
+- Estrategia definida para multiinstancia o limitacion documentada si se mantiene memoria local.
 
-Gate de cierre:
+Validacion:
 
-- `packages/dominio` no importa Next, Prisma ni infra.
-- `packages/aplicacion` no importa rutas de Next.
-- `apps/tpv/app/api/**/route.ts` no contiene calculos de negocio.
-- Los scripts de test de paquetes criticos dejan de ser placeholders.
+- Tests unitarios de cliente realtime.
+- Test de integracion de endpoint SSE.
+- Smoke manual: crear pedido, enviar cocina/barra y ver cambio sin recargar.
 
-## 7. Fase 3 - Cobro, caja y stock atomicos
+Agentes:
+
+- Backend Developer.
+- Frontend Developer.
+- QA Test Executor.
+
+### C2 - Atomicidad de cobro, caja, stock y pedido
 
 Objetivo:
 
-- Hacer indivisible el flujo: pedido -> cobro -> caja -> stock -> auditoria -> eventos.
+- Hacer indivisible el flujo critico: pedido -> cobro -> caja -> stock -> auditoria -> realtime.
 
-Reglas:
+Hallazgos cubiertos:
 
-- Cobrar pedido se ejecuta en una unica transaccion DB.
-- El pedido solo se cierra si pagos, caja, stock y auditoria quedan persistidos.
-- Stock reservado se consolida dentro de la misma transaccion.
-- Si algo falla, no debe quedar pedido cerrado con caja incompleta ni stock consolidado sin cobro.
-- Cuenta dividida exige:
-  - minimo 2 divisiones;
-  - maximo 20 divisiones;
-  - importes positivos;
-  - suma exacta del total;
-  - cada division conserva su importe parcial;
-  - metodo de pago valido por division.
+- A-02, A-03.
 
 Entregables:
 
-- Caso de uso `cobrarPedido` transaccional en `packages/aplicacion`.
-- Reglas de validacion de pagos en `packages/dominio`.
-- Repositorios transaccionales en `packages/infra`.
-- Auditoria de cobro, cierre de pedido, movimientos de caja y stock.
-- Eventos emitidos solo despues de commit correcto.
-- Tarea de reconciliacion para detectar descuadres:
-  - pedido cerrado sin pago completo;
-  - pago registrado sin pedido cerrado;
-  - stock consolidado sin cobro;
-  - caja con cobros no vinculados.
+- Caso de uso de aplicacion para cobrar pedido dentro de una transaccion DB.
+- Consolidacion de reservas de stock, registro de pagos, cierre de pedido y auditoria en la misma unidad de trabajo.
+- Validacion estricta de cobro dividido:
+  - minimo 2 divisiones.
+  - maximo operativo documentado.
+  - suma exacta del total.
+  - cada division conserva su importe parcial real.
+  - no permitir formas de pago negativas o cero salvo regla expresa.
+- Pruebas DB para fallos intermedios simulados y rollback.
+- Reconciliacion basica para detectar pedidos cerrados sin pago, pagos sin pedido cerrado o stock consolidado sin cobro.
 
-Gate de cierre:
+Validacion:
 
-- Test DB de cobro normal.
-- Test DB de cobro mixto.
-- Test DB de cuenta dividida.
-- Test DB de fallo intermedio con rollback.
-- Test de invariantes de stock.
-- No hay ruta HTTP que cierre pedido, caja o stock por separado en el flujo de cobro.
+- `RUN_DB_TESTS=1 corepack pnpm test:db`.
+- Tests especificos de cuenta dividida y cobro mixto.
+- Revision de datos tras fallo forzado.
 
-## 8. Fase 4 - Realtime fiable
+Agentes:
+
+- Tech Lead.
+- Backend Developer.
+- Database Designer.
+- QA Test Executor.
+
+### C3 - Contratos, estados y errores alineados con PRD
 
 Objetivo:
 
-- Garantizar que sala, cocina, barra y caja reciben cambios en vivo y se recuperan tras reconexion.
+- Cerrar la divergencia entre PRD, Prisma, DTOs, schemas, API y clientes.
 
-Decision:
+Hallazgos cubiertos:
 
-- SSE usa `message` como evento de transporte.
-- El nombre de evento vive dentro de `EventoRealtime.nombre`.
-- El payload vive dentro de `EventoRealtime.datos`.
-- No se usan eventos SSE nombrados salvo que el cliente registre listeners explicitos para todos ellos.
+- A-05, A-06, A-07, A-08.
 
 Entregables:
 
-- Servidor SSE alineado con el cliente.
-- Cliente realtime con:
-  - deduplicacion por id;
-  - replay por `desdeId`;
-  - reconexion controlada;
-  - recuperacion de estado por API cuando sea necesario.
-- Backlog realtime con politica de retencion documentada.
-- Canales autorizados por usuario, rol, permisos y dispositivo.
-- Eventos de pedido, linea, mesa, caja, stock, reserva, carta y menu usando contratos compartidos.
+- Matriz PRD -> Prisma -> Zod -> DTO -> UI para:
+  - estados de reservas.
+  - estados de lista de espera.
+  - estados de pedido de compra.
+  - error API.
+  - eventos realtime.
+  - DTO publico de plato/carta/menu.
+- Migraciones o adaptadores necesarios para estados divergentes.
+- Decision documentada si se prefiere cambiar PRD en vez de codigo.
+- Tests contractuales para API publica y errores.
 
-Gate de cierre:
+Validacion:
 
-- Test unitario de cliente realtime.
-- Test de stream SSE.
-- Test de replay tras reconexion.
-- Smoke manual:
-  1. abrir mesa;
-  2. anadir linea;
-  3. enviar a cocina/barra;
-  4. cambiar estado;
-  5. cobrar;
-  6. ver actualizacion sin recargar.
+- Tests de contratos en `packages/contratos`.
+- Tests de endpoints publicos.
+- Revision de OpenAPI/documentacion si se genera en una fase posterior.
 
-## 9. Fase 5 - Seguridad, administracion y auditoria
+Agentes:
+
+- Tech Lead.
+- Backend Developer.
+- Frontend Developer.
+- QA Test Executor.
+
+### C4 - Modularidad real: dominio, aplicacion, infra y contratos
 
 Objetivo:
 
-- Cerrar la operacion privada y la trazabilidad.
+- Hacer que la arquitectura monolitica modular sea real, no solo una estructura de carpetas.
 
-Entregables de seguridad:
+Hallazgos cubiertos:
 
-- Validacion de secretos al arrancar.
-- Politica de dispositivos:
-  - un dispositivo desconocido no queda activo automaticamente en produccion;
-  - alta, baja y bloqueo quedan auditados;
-  - PIN solo funciona en dispositivo activo.
-- Rate-limit por adaptador:
-  - memoria solo para desarrollo;
-  - persistente para produccion o limitacion single-instance documentada.
-- Headers de seguridad en API publica, API privada y HTML.
-- Redaccion de datos sensibles en logs.
+- A-04, A-11.
 
-Entregables de administracion:
+Entregables:
 
-- API/UI privada para configuracion del negocio.
-- API/UI privada para usuarios.
-- API/UI privada para roles/permisos si no queda fijo por codigo.
-- API/UI privada para dispositivos.
+- Casos de uso criticos movidos a `packages/aplicacion`.
+- Reglas puras movidas a `packages/dominio`.
+- Acceso Prisma encapsulado en `packages/infra`.
+- Handlers HTTP finos: parsean entrada, llaman caso de uso, devuelven respuesta.
+- Tests reales para dominio y aplicacion; eliminar scripts placeholder como evidencia de cierre.
+- Regla de dependencias documentada:
+  - `dominio` no importa infra ni Next.
+  - `aplicacion` orquesta dominio e interfaces.
+  - `infra` implementa puertos.
+  - `apps/tpv` compone UI/API.
 
-Entregables de auditoria:
+Validacion:
 
-- Auditoria uniforme en:
-  - usuarios;
-  - dispositivos;
-  - configuracion;
-  - carta/menu;
-  - pedidos;
-  - cancelaciones;
-  - caja;
-  - cobros;
-  - stock;
-  - compras;
-  - proveedores;
-  - reservas.
-- Campos minimos:
-  - `usuarioId`
-  - `rol`
-  - `accion`
-  - `entidad`
-  - `entidadId`
-  - `requestId`
-  - `ip`
-  - `motivo`
-  - `antes`
-  - `despues`
-  - `creadoEn`
+- `corepack pnpm -r lint`.
+- `corepack pnpm -r type-check`.
+- Tests de dominio/aplicacion con cobertura minima acordada.
+- Revision con skill/local de modularidad.
 
-Gate de cierre:
+Agentes:
+
+- Tech Lead.
+- Backend Developer.
+- Database Designer.
+- QA Test Executor.
+
+### C5 - Seguridad, auditoria, configuracion y administracion
+
+Objetivo:
+
+- Completar la operacion privada segura para usuarios, roles, dispositivos, configuracion y trazabilidad.
+
+Hallazgos cubiertos:
+
+- A-09, A-10, A-12.
+
+Entregables:
+
+- UI/API privadas para usuarios, roles/permisos, dispositivos y configuracion de negocio.
+- Politica de alta de dispositivos: no auto-activar tokens desconocidos en produccion.
+- Validacion de secretos al arrancar:
+  - `SESSION_SECRET`.
+  - variables de DB.
+  - origenes permitidos.
+  - flags de entorno.
+- Auditoria uniforme para mutaciones criticas:
+  - caja.
+  - stock.
+  - pedidos.
+  - compras.
+  - carta/menu.
+  - usuarios/dispositivos.
+  - configuracion.
+- `requestId` obligatorio en errores y auditoria cuando el request pasa por API.
+- Rate-limit persistente o limitacion operacional documentada para despliegue single-instance.
+
+Validacion:
 
 - Tests de permisos por rol.
-- Tests de dispositivo activo/inactivo.
 - Tests de auditoria por mutacion critica.
-- Security review sin hallazgos criticos abiertos.
+- Security review posterior a cambios.
 
-## 10. Fase 6 - UX operativa, web publica y accesibilidad
+Agentes:
+
+- Security Auditor.
+- Backend Developer.
+- Frontend Developer.
+- QA Test Executor.
+
+### C6 - QA real, cobertura y pruebas no funcionales
 
 Objetivo:
 
-- Cerrar la experiencia visible sin introducir nuevas funcionalidades de negocio.
+- Convertir los gates verdes en evidencia real de calidad, no solo ejecucion correcta de scripts.
 
-Entregables UX:
+Hallazgos cubiertos:
 
-- Sustituir `window.prompt` y `window.alert` por dialogos accesibles.
+- A-11 y pendientes de Fase 14.
+
+Entregables:
+
+- Sustituir tests placeholder en paquetes criticos por suites reales o marcar explicitamente "sin alcance critico".
+- Matriz QA final con:
+  - login email/PIN.
+  - apertura de caja.
+  - mesa/pedido.
+  - cocina/barra.
+  - cobro mixto/dividido.
+  - stock.
+  - cierre caja.
+  - informes.
+  - API publica.
+  - permisos.
+  - realtime.
+- Prueba de carga basica para API publica con p95/p99.
+- Auditoria automatizada a11y con axe/Lighthouse.
+- Smoke de backup/restore en entorno controlado.
+
+Validacion:
+
+- `corepack pnpm -r lint`.
+- `corepack pnpm -r type-check`.
+- `corepack pnpm -r test`.
+- `RUN_DB_TESTS=1 corepack pnpm test:db`.
+- `corepack pnpm -r build`.
+- Informe de cobertura y riesgos residuales.
+
+Agentes:
+
+- QA Test Executor.
+- Security Auditor.
+- Tech Lead.
+
+### C7 - UX operativa, web publica y accesibilidad final
+
+Objetivo:
+
+- Cerrar la experiencia de uso de sala/caja/admin y la web publica visible para clientes.
+
+Hallazgos cubiertos:
+
+- A-13, A-14.
+
+Entregables:
+
+- Sustituir `window.prompt` y `window.alert` por modales/formularios accesibles.
 - Navegacion privada filtrada por permisos.
-- Estados de carga, vacio, error y exito en flujos criticos.
-- Confirmaciones con motivo cuando afecten a caja, stock, cancelaciones o auditoria.
-- Pantallas operativas ajustadas a tablet/TPV.
+- Estados de carga, error, vacio y exito en flujos criticos.
+- Web publica con imagenes cuando exista `imagenUrl`.
+- Metadata final del negocio, no `Create Next App`.
+- Revision de contraste, foco visible, labels y navegacion por teclado.
+- Ajuste de textos y layout para tablet/TPV.
 
-Entregables web publica:
+Validacion:
 
-- Renderizar `imagenUrl` cuando exista.
-- Metadata real del negocio.
-- Carta publica con categorias, platos, alergenos, precio y estado publico.
-- Menu del dia publicado.
-- Sin datos internos en HTML ni JSON publico.
-
-Entregables accesibilidad:
-
-- Foco visible.
-- Labels asociados.
-- Dialogos con roles y cierre por teclado.
-- Errores anunciados.
-- Contraste revisado.
-- Navegacion por teclado en flujos principales.
-
-Gate de cierre:
-
-- Smoke de sala/caja sin prompts nativos.
+- Prueba manual en viewport TPV/tablet/movil.
+- Axe/Lighthouse sin errores criticos.
 - Smoke de carta publica y menu del dia.
-- Auditoria axe/Lighthouse sin errores criticos.
-- Navegacion privada no muestra enlaces sin permiso.
 
-## 11. Fase 7 - QA final y release controlado
+Agentes:
 
-Objetivo:
+- Disenador UX/UI.
+- Frontend Developer.
+- QA Test Executor.
 
-- Demostrar que la aplicacion cumple el PRD y que las diferencias auditadas estan cerradas.
+## 8. Backlog transversal
 
-Matriz QA minima:
+### 8.1 Calidad
 
-- Login email/password.
-- Login PIN con dispositivo activo.
-- Usuario sin permiso bloqueado en backend.
-- Apertura de caja.
-- Apertura de mesa.
-- Pedido con linea a cocina.
-- Pedido con linea a barra.
-- Cambio de estado realtime.
-- Cancelacion directa.
-- Solicitud y aprobacion de cancelacion.
-- Cobro efectivo.
-- Cobro tarjeta.
-- Cobro mixto.
-- Cuenta dividida.
-- Consolidacion de stock.
-- Cierre de caja.
-- Informe de turno.
-- API publica de negocio.
-- API publica de carta.
-- API publica de plato por slug.
-- API publica de menu del dia.
-- Reserva y lista de espera.
-- Compra y recepcion con impacto en stock.
-- Auditoria consultable.
-- Backup y restore en entorno controlado.
+- Politica de cobertura minima por paquete critico.
+- Contract tests para API publica y privada.
+- Fixtures realistas de restaurante.
+- Tests de rollback transaccional.
+- Tests de permisos por rol.
+- Tests de realtime con reconexion y replay.
 
-Pruebas no funcionales:
+### 8.2 Seguridad
 
-- Carga basica API publica con p95/p99 documentado.
-- Reconexion realtime.
-- Accesibilidad automatizada.
-- Revision de logs sin datos sensibles.
-- Migraciones en estado limpio.
+- Gestion de secretos por entorno.
+- Rate-limit persistente o restriccion operacional single-instance.
+- Headers de seguridad para API publica, privada y HTML.
+- Auditoria de datos sensibles en logs.
+- Politica de sesiones y dispositivos.
 
-Gate final:
+### 8.3 Datos
 
-```bash
-corepack pnpm -r lint
-corepack pnpm -r type-check
-corepack pnpm -r test
-corepack pnpm -r build
-corepack pnpm db:migrate:status
-```
+- Indices para filtros publicos y consultas de sala/caja/informes.
+- Migraciones revisadas con rollback operativo.
+- Backups programados y restore periodico.
+- Reconciliacion de caja, pedido y stock.
 
-Con DB real:
+### 8.4 Producto
 
-```powershell
-$env:RUN_DB_TESTS = "1"
-$env:DATABASE_URL = "postgresql://tpv:tpv@localhost:5432/tpv"
-corepack pnpm test:db
-```
+- Gestion completa de carta/menu/alergenos/imagenes.
+- Configuracion visual y operativa del negocio.
+- Informes historicos comparativos.
+- Exportacion CSV/PDF.
+- Panel de dispositivos.
 
-Condiciones de release:
+### 8.5 Arquitectura
 
-- 0 diferencias criticas abiertas.
-- 0 tests placeholder usados como evidencia de paquetes criticos.
-- 0 rutas publicas con datos internos.
-- 0 mutaciones criticas sin auditoria.
-- 0 flujos economicos sin transaccion o reconciliacion.
-- Checklist de despliegue ejecutado en entorno controlado.
+- Puertos y adaptadores entre aplicacion e infra.
+- Eventos compartidos desde `packages/contratos`.
+- Reglas puras en `packages/dominio`.
+- Casos de uso transaccionales en `packages/aplicacion`.
+- Handlers HTTP sin reglas de negocio.
 
-## 12. Responsables
+## 9. Riesgos principales
 
-| Fase | Responsable principal | Apoyos |
+| Riesgo | Impacto | Mitigacion |
 | --- | --- | --- |
-| 1 - Contratos | Tech Lead | Backend, Frontend, QA |
-| 2 - Modularidad | Tech Lead | Backend, Database, QA |
-| 3 - Cobro/caja/stock | Backend | Database, QA, Security |
-| 4 - Realtime | Backend | Frontend, QA |
-| 5 - Seguridad/admin/auditoria | Security | Backend, Frontend, QA |
-| 6 - UX/web/a11y | UX/UI | Frontend, QA |
-| 7 - QA final | QA | Tech Lead, Security |
+| Realtime no entrega eventos al cliente | Operacion de cocina/barra inconsistente | C1 antes de cualquier demo operativa |
+| Cobro no atomico | Descuadres de caja/stock/pedido | C2 con transacciones y rollback probado |
+| Cuenta dividida incorrecta | Importes falsos y perdida de confianza | C2 con tests DB dedicados |
+| Contratos divergentes del PRD | Clientes rotos y deuda documental | C3 con matriz PRD-codigo |
+| Modularidad solo nominal | Baja mantenibilidad | C4 antes de ampliar funcionalidades |
+| Auditoria incompleta | Falta trazabilidad | C5 con cobertura por mutacion critica |
+| Tests placeholder | Release con falsa seguridad | C6 con suites reales |
+| Rate-limit/backlog en memoria | Problemas en reinicio o multiinstancia | C1/C5 con decision de despliegue |
+| UX con prompts/alerts | Operacion poco profesional | C7 con componentes accesibles |
+| Documentacion desfasada | Onboarding erroneo | C0 y bitacora obligatoria |
 
-## 13. No hacer en este plan
+## 10. Handoff inicial
 
-- No implementar SaaS.
-- No introducir multiempresa.
-- No introducir multiestablecimiento.
-- No redisenar el producto.
-- No anadir integracion bancaria real.
-- No anadir app movil nativa.
-- No migrar a microservicios.
-- No construir nuevas areas de negocio fuera de las diferencias auditadas.
-- No maquillar la UI antes de corregir contratos, transacciones y realtime.
+Siguiente bloque recomendado:
 
-## 14. Handoff para el siguiente bloque
+1. Ejecutar C1 y C2 antes de nuevas funcionalidades.
+2. No cerrar Fase 14 como release hasta que C1, C2 y C3 esten verdes.
+3. Usar C4 para reducir deuda antes de seguir ampliando compras/informes.
+4. Usar C5-C7 para preparar despliegue controlado.
 
-Siguiente paso recomendado:
+Regla de cierre:
 
-1. Ejecutar Fase 1 completa.
-2. Abrir issues o tareas por cada contrato/estado/error/evento divergente.
-3. No tocar cobro ni realtime hasta cerrar los contratos compartidos.
-4. Registrar cada correccion en la bitacora de `AGENTS.md`.
-
-Primera entrega esperada:
-
-- PR con contratos corregidos.
-- Migracion o adaptador de estados.
-- Tests contractuales reales.
-- API publica devolviendo `precio: string`.
-- `ErrorApi` con `requestId` obligatorio.
+- Una correccion no queda cerrada solo por compilar.
+- Debe tener prueba automatizada o evidencia manual reproducible.
+- Debe actualizar la bitacora de `AGENTS.md`.
+- Debe mantener fuera de alcance SaaS, multiempresa, multiestablecimiento y tenancy preventiva.
